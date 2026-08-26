@@ -24,3 +24,4 @@
 - Added provider configuration, environment overrides, attribution, quota/licensing guidance, timeouts, throttling, and browser-memory caching.
 - Prevented pre-hydration clicks from being silently discarded and lazy-loaded the MapLibre runtime.
 - Added desktop/mobile E2E coverage for search, scoring, theme/language, 3D, and public provider context.
+- Fixed the building-extrusion base expression, increased the 3D camera zoom, and now report readiness only when building features are actually rendered.

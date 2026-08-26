@@ -97,8 +97,9 @@ function ensure3DBuildings(map: MapLibreMap) {
       paint: {
         "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 0], 0, "#d7dfdb", 80, "#7fb8a5", 200, "#4a8f78"],
         "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["coalesce", ["get", "render_height"], 8]],
-        "fill-extrusion-base": ["case", [">=", ["zoom"], 16], ["coalesce", ["get", "render_min_height"], 0], 0],
-        "fill-extrusion-opacity": 0.78
+        "fill-extrusion-base": ["case", [">=", ["get", "zoom"], 16], ["coalesce", ["get", "render_min_height"], 0], 0],
+        "fill-extrusion-opacity": 0.9,
+        "fill-extrusion-vertical-gradient": true
       }
     });
   }
@@ -121,7 +122,7 @@ export function MapExplorer() {
   const [mapReady, setMapReady] = useState(false);
   const [is3D, setIs3D] = useState(false);
   const is3DRef = useRef(false);
-  const [threeDStatus, setThreeDStatus] = useState<"IDLE" | "LOADING" | "READY" | "UNAVAILABLE">("IDLE");
+  const [threeDStatus, setThreeDStatus] = useState<"IDLE" | "LOADING" | "READY" | "NO_BUILDINGS" | "UNAVAILABLE">("IDLE");
   const [publicContext, setPublicContext] = useState<PublicLocationContext | null>(null);
   const [publicLoading, setPublicLoading] = useState(false);
   const [layerState, setLayerState] = useState<Record<string, boolean>>(() => Object.fromEntries(LAYERS.map((layer) => [layer.id, layer.default])));
@@ -178,7 +179,13 @@ export function MapExplorer() {
     setRemoteResults([]);
     setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — ผลวิเคราะห์อัปเดตทันที" : "Location selected — analysis updated");
     setPinMode(false);
-    mapRef.current?.easeTo({ center: [candidate.longitude, candidate.latitude], zoom: 13.5, duration: 650 });
+    mapRef.current?.easeTo({
+      center: [candidate.longitude, candidate.latitude],
+      zoom: is3DRef.current ? 16.2 : 13.5,
+      pitch: is3DRef.current ? 60 : 0,
+      bearing: is3DRef.current ? -24 : 0,
+      duration: 650
+    });
   };
 
   const changeRadius = (value: number) => {
@@ -207,12 +214,18 @@ export function MapExplorer() {
     }
     const applyMode = () => {
       if (!map.isStyleLoaded()) return false;
-      if (next) ensure3DBuildings(map);
+      try {
+        if (next) ensure3DBuildings(map);
+      } catch (error) {
+        console.warn("Unable to enable the OpenFreeMap 3D building layer", error);
+        setThreeDStatus("UNAVAILABLE");
+        return false;
+      }
       if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", next ? "visible" : "none");
       map.easeTo({
-        pitch: next ? 55 : 0,
-        bearing: next ? -18 : 0,
-        zoom: next ? Math.max(map.getZoom(), 15.3) : Math.min(map.getZoom(), 14),
+        pitch: next ? 60 : 0,
+        bearing: next ? -24 : 0,
+        zoom: next ? Math.max(map.getZoom(), 16.2) : Math.min(map.getZoom(), 14),
         duration: 700
       });
       setThreeDStatus(next ? "LOADING" : "IDLE");
@@ -252,7 +265,8 @@ export function MapExplorer() {
       style: BASE_STYLE,
       center: [INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude],
       zoom: 12.2,
-      attributionControl: false
+      attributionControl: false,
+      canvasContextAttributes: { antialias: true }
     });
     mapRef.current = map;
     setMapReady(true);
@@ -275,9 +289,16 @@ export function MapExplorer() {
         setOnlineTilesReady(true);
         setTileWarning(false);
       }
+      if (is3DRef.current && map.getLayer("3d-buildings") && map.isSourceLoaded("openfreemap-buildings")) {
+        const featureCount = map.queryRenderedFeatures({ layers: ["3d-buildings"] }).length;
+        setThreeDStatus(featureCount > 0 ? "READY" : "NO_BUILDINGS");
+      }
     });
     map.on("sourcedata", (event) => {
-      if (event.sourceId === "openfreemap-buildings" && event.isSourceLoaded) setThreeDStatus("READY");
+      if (event.sourceId === "openfreemap-buildings" && event.isSourceLoaded && map.getLayer("3d-buildings")) {
+        const featureCount = map.queryRenderedFeatures({ layers: ["3d-buildings"] }).length;
+        setThreeDStatus(featureCount > 0 ? "READY" : "NO_BUILDINGS");
+      }
     });
     map.on("load", () => {
       setMapReady(true);
@@ -420,8 +441,8 @@ export function MapExplorer() {
         <div className="map-instruction"><MousePointer2 />{language === "th" ? "คลิกจุดที่สนใจบนแผนที่" : "Click a point to analyze it"}</div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
         <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + OpenFreeMap 3D buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
-        {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`}><Box />OpenFreeMap 3D · {threeDStatus}</div>}
-        <button className="map-float-btn" disabled={!mapReady} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: 13.5, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
+        {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`}><Box />{threeDStatus === "READY" ? (language === "th" ? "อาคาร 3D พร้อมใช้งาน" : "3D buildings ready") : threeDStatus === "NO_BUILDINGS" ? (language === "th" ? "ไม่พบอาคาร 3D บริเวณนี้" : "No 3D buildings in view") : `OpenFreeMap 3D · ${threeDStatus}`}</div>}
+        <button className="map-float-btn" disabled={!mapReady} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? 16.2 : 13.5, pitch: is3D ? 60 : 0, bearing: is3D ? -24 : 0, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
       </div>
 
       <aside className="map-panel site-panel result-panel">
