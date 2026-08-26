@@ -45,3 +45,14 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".public-api-card")).toContainText("3.5 m³/s");
   await expect(page.locator(".public-api-card")).toContainText("not verified parcel-level flood risk");
 });
+
+test("saved dark theme hydrates without breaking controls", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.getByRole("button", { name: "Switch language" }).click();
+  await expect(page.getByRole("heading", { name: "แดชบอร์ดผู้บริหาร" })).toBeVisible();
+  expect(pageErrors.filter((message) => message.includes("Hydration failed"))).toEqual([]);
+});

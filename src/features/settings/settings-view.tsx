@@ -20,7 +20,7 @@ export function SettingsView() {
     <div className="settings-grid">
       <section className="card setting-card">
         <div className="card-head" style={{ padding: 0 }}><div><h2>Appearance</h2><p>Stored as a device-local preference</p></div><Moon size={17} /></div>
-        <div className="setting-row"><div><strong>Color theme</strong><span>Light, dark or follow system</span></div><select className="select" disabled={!interactive} value={theme} onChange={(event) => setTheme(event.target.value)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div>
+        <div className="setting-row"><div><strong>Color theme</strong><span>Light, dark or follow system</span></div><select className="select" disabled={!interactive} value={interactive ? theme : "system"} onChange={(event) => setTheme(event.target.value)}><option value="light">Light</option><option value="dark">Dark</option><option value="system">System</option></select></div>
         <div className="setting-row"><div><strong>Language</strong><span>Interface language architecture</span></div><select className="select" disabled={!interactive} value={language} onChange={(event) => setLanguage(event.target.value as "en" | "th")}><option value="en">English</option><option value="th">ไทย</option></select></div>
       </section>
       <section className="card setting-card">
