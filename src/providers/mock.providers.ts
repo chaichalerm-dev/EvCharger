@@ -1,2 +1,0 @@
-import { MOCK_MAP_ENTITIES } from "@/src/data/mock/entities"; import type { EVStationProvider,MapProvider,POIProvider } from "./interfaces";
-export class MockMapProvider implements MapProvider{getStyleUrl(){return "https://tiles.openfreemap.org/styles/positron"}} export class MockEVStationProvider implements EVStationProvider{async nearby(){return MOCK_MAP_ENTITIES.filter(x=>x.kind==="EV_STATION")}} export class MockPOIProvider implements POIProvider{async nearby(){return MOCK_MAP_ENTITIES.filter(x=>x.kind==="POI")}}

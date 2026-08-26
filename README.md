@@ -1,34 +1,40 @@
 # EV Location & Expansion Intelligence Platform
 
-A frontend-first, backend-ready, database-ready prototype for deciding where an EV charging infrastructure company should expand in Thailand.
+A frontend-first, backend-ready location decision prototype for EV charging expansion in Thailand.
 
-All market records are **Demo / Mock Data**, financial outputs are **Simulation / Estimate**, map tiles come from a free external provider, prototype roles are not authentication, and partner submissions use non-secure browser-local persistence.
+The runtime is now **Real Provider Mode**: it does not insert bundled market fixtures into the dashboard, map analysis, sites, partners, branches, comparison, or opportunity pipeline. Public location context is requested from configured providers. Company portfolio screens remain empty until a company Business REST API is configured.
 
 ## What works today
 
-- Executive portfolio dashboard and ranked opportunities.
-- MapLibre map with clustered opportunities, EV stations, competitors, gas stations, POIs, partner branches, radius analysis, search, selection, dropped pins, and optional OpenFreeMap 3D buildings.
-- On-demand public context from OpenStreetMap/Overpass and Open-Meteo for nearby places, current weather, approximate elevation, and river-discharge context, with partial-failure handling and attribution.
-- Site intelligence for demand, competition, access, POIs, infrastructure gaps, flood risk, area, source quality, score, recommendation, risks, and missing information.
-- Comparison, partner submission, branch ranking, lifecycle decisions, expansion analysis, financial simulation, demo RBAC, failure simulation, Thai/English foundation, and light/dark/system themes.
+- Thailand-constrained MapLibre map, place search, click-to-select, 1/3/5/10 km analysis radius, compact clustered markers, and optional 3D buildings.
+- On-demand OpenStreetMap/Nominatim/Overpass, Open-Meteo weather/elevation/flood context, WorldPop population, and optional TomTom traffic flow.
+- Deterministic score and explainable recommendation calculated from available provider data; missing survey facts remain `Unknown` or `Requires Site Survey`.
+- Runtime API Connection settings for provider endpoint and token replacement without editing code.
+- Business API client for `GET /sites`, `/partners`, `/branches`, and `/opportunities` using an optional temporary bearer token.
+- Partner submission prototype, Thai/English foundation, light/dark/system themes, responsive UI, and automated tests.
+
+## API-token safety
+
+Tokens entered in Settings exist **only in JavaScript memory** and are cleared by a full page refresh. They are not stored in localStorage, source code, Git, or the deployed artifact. This avoids pretending that browser storage protects secrets. Provider-approved public/client keys may be used for evaluation; production secrets require a same-origin backend proxy and secure server-side session.
 
 ## Start and validate
 
     npm install
     npm run dev
     npm run typecheck
+    npm run lint
     npm test
     npm run build
     npm run build:vercel
 
-Open http://localhost:3000. The core demo requires no database, backend, secret, or paid API.
+Open http://localhost:3000, then:
 
-The standard build validates the Sites/Vinext target. build:vercel validates standard Next.js. Vercel uses vercel.json; no environment value is required.
+1. Open `/settings#api-connections` to enable providers or enter TomTom/company API credentials.
+2. Open `/map`, search for a Thailand location or click the map, choose a radius, and press **Check this area**.
+3. Configure a company Business API to populate portfolio screens; no company records are fabricated when it is absent.
 
-UI features depend on services and repository interfaces. MockSiteRepository can be replaced by ApiSiteRepository without changing screens. Partner submissions depend on SubmissionRepository and currently use LocalStorageSubmissionRepository.
-
-Read AI.md before changing code, then docs/ARCHITECTURE.md, docs/SECURITY.md, and docs/HANDOFF.md.
+No database or local backend is required for public map analysis. Read `AI.md`, `docs/ARCHITECTURE.md`, `docs/DATA-SOURCES.md`, and `docs/SECURITY.md` before changing behavior.
 
 ## Limitations
 
-This is not real-time, database-backed, production-authenticated, or production-secure. Do not use it for final land, electrical, flood, engineering, or investment decisions without independent verification and a site survey.
+Public data is neither guaranteed real-time nor field verified. Free public endpoints have quotas, licensing conditions, CORS policies, and no guaranteed SLA. The prototype is not production-authenticated or production-secure. Never use it as the sole basis for land, electrical, traffic, flood, engineering, or investment decisions.

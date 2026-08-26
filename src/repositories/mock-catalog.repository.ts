@@ -1,2 +1,0 @@
-import type { CatalogRepository } from "./catalog.repository"; import { MOCK_SITES } from "@/src/data/mock/sites"; import { MOCK_MAP_ENTITIES } from "@/src/data/mock/entities"; import { MOCK_BRANCHES,MOCK_PARTNERS } from "@/src/data/mock/partners";
-export class MockCatalogRepository implements CatalogRepository{getSites(){return structuredClone(MOCK_SITES)}getMapEntities(){return structuredClone(MOCK_MAP_ENTITIES)}getPartners(){return structuredClone(MOCK_PARTNERS)}getBranches(){return structuredClone(MOCK_BRANCHES)}}

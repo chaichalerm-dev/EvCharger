@@ -1,2 +1,17 @@
-import { describe,expect,it } from "vitest"; import { MOCK_SITES } from "@/src/data/mock/sites"; import { filterSites } from "@/src/services/site-search";
-describe("site search",()=>{it("searches Thai and English geographic fields",()=>{expect(filterSites(MOCK_SITES,{query:"บางนา"}).map(x=>x.id)).toContain("site-bkk-bangna");expect(filterSites(MOCK_SITES,{query:"Phuket"})).toHaveLength(1)});it("combines province and lifecycle filters",()=>{const rows=filterSites(MOCK_SITES,{province:"Bangkok",status:"APPROVED"});expect(rows).toHaveLength(1);expect(rows[0].id).toBe("site-bkk-bangna")});it("returns an empty state for unmatched queries",()=>{expect(filterSites(MOCK_SITES,{query:"no such place"})).toEqual([])})});
+import { describe, expect, it } from "vitest";
+import { filterSites } from "@/src/services/site-search";
+import { siteFixture } from "./site-fixture";
+
+const sites = [
+  siteFixture({ id: "bang-na", name: "Bang Na", nameTh: "บางนา", province: "Bangkok", opportunityStatus: "APPROVED" }),
+  siteFixture({ id: "phuket", name: "Phuket Central", nameTh: "ภูเก็ต", province: "Phuket", district: "Mueang" }),
+];
+
+describe("site search", () => {
+  it("searches Thai and English geographic fields", () => {
+    expect(filterSites(sites, { query: "บางนา" }).map(site => site.id)).toContain("bang-na");
+    expect(filterSites(sites, { query: "Phuket" })).toHaveLength(1);
+  });
+  it("combines province and lifecycle filters", () => expect(filterSites(sites, { province: "Bangkok", status: "APPROVED" })).toHaveLength(1));
+  it("returns an empty state for unmatched queries", () => expect(filterSites(sites, { query: "no such place" })).toEqual([]));
+});

@@ -29,3 +29,12 @@
 - Constrained prototype map navigation/search to Thailand and made the active coverage explicit.
 - Reduced marker footprints and fixed marker scale/alignment to the viewport so zoom and 3D pitch do not make points cover the map.
 - Changed markers to capped zoom interpolation so they become smaller—not visually larger—when zooming out to province or Thailand overview levels.
+
+## 0.4.0 — 2026-08-26
+
+- Switched runtime screens from mock repositories to Real Provider Mode with honest empty states.
+- Added runtime endpoint/token controls for OSM tiles, OpenFreeMap, Nominatim, Overpass, Open-Meteo, WorldPop, TomTom, and a company Business REST API.
+- Added WorldPop radius population and optional TomTom traffic flow to area analysis.
+- Added a Business API resource adapter for sites, partners, branches, and opportunities.
+- Kept API tokens in page memory only and documented the required production backend proxy.
+- Updated critical unit/E2E coverage and provider documentation.

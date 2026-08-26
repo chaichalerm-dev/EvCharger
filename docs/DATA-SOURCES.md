@@ -1,12 +1,12 @@
 # Data Sources
 
-All bundled records are demonstration fixtures. They are not a factual directory and are not real-time.
+Runtime business screens do not load bundled market fixtures. Public observations are fetched on demand, are not guaranteed real-time, and must not be treated as field verification. Legacy fixtures may remain as isolated development references/tests but are not wired into runtime repositories.
 
 Future ingestion registers provider, license, coverage, method, cadence, timestamps, confidence, verification, and raw snapshot. Scheduled sync must be observable and idempotent. Stale records become EXPIRED.
 
 ## Connected public providers
 
-The prototype uses no-key public services only after an explicit user action. Endpoints are configurable through `.env`; provider implementations are isolated from business rules.
+The prototype uses public services only after an explicit user action. Endpoints and eligible browser/client keys are editable at runtime in Settings and provider implementations are isolated from business rules.
 
 | Provider | Prototype use | Important constraint |
 | --- | --- | --- |
@@ -17,5 +17,8 @@ The prototype uses no-key public services only after an explicit user action. En
 | Open-Meteo Forecast | On-demand current weather context | Free/non-commercial public API; attribution and usage limits apply |
 | Open-Meteo Elevation | Approximate elevation context | Copernicus DEM, approximately 90 m resolution |
 | Open-Meteo Flood | River-discharge model context | Approximately 5 km resolution; never presented as verified parcel flood risk |
+| WorldPop API v2 | Population and density within the selected radius polygon | Async task; 1,000 requests/day without a key and 10,000/day with an approved key at time of implementation |
+| TomTom Traffic Flow | Nearest road current/free-flow speed | API key required; developer quota/licence depends on the active plan |
+| Company Business REST API | Sites, partners, branches, opportunities | Customer-owned endpoint and bearer token required; no public substitute exists |
 
-Optional providers such as MapTiler can be configured later with environment variables. No trial key or credential is committed to source control. Commercial deployment must re-check provider licensing, quota, privacy, SLA, and attribution requirements.
+No trial key or credential is committed to source control. Runtime tokens are memory-only and clear on refresh. Commercial deployment must re-check provider licensing, quota, privacy, CORS, SLA, and attribution requirements.

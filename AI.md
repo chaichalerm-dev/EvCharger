@@ -23,7 +23,7 @@ Every coding agent must:
 - src/components: reusable layout and dialogs.
 - src/domain: UI-independent models.
 - src/config: geographic, scoring, station, lifecycle, and permission configuration.
-- src/data/mock: realistic but explicitly fictional records.
+- src/providers and src/hooks: real public-provider adapters and configurable company Business API access.
 - src/repositories: interfaces and replaceable implementations.
 - src/services: validation, scoring, recommendation, search, and simulation.
 - src/providers: future external-provider interfaces.
@@ -40,7 +40,7 @@ Every coding agent must:
 
 ## Repository pattern
 
-Components call services. Services depend on repository/provider contracts. Mock implementations may import fixtures; UI components must not become the authoritative data layer. Future API repositories return the same domain contracts or map API DTOs to them.
+Components call services/hooks. Services depend on repository/provider contracts. Runtime screens must not import or synthesize market fixtures; disconnected company sources render explicit empty/error states. Future typed API repositories return the same domain contracts or map API DTOs to them.
 
 ## Security
 

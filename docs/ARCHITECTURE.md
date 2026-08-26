@@ -2,13 +2,13 @@
 
 ## Current
 
-Browser → Next.js feature UI → services → repository/provider interfaces → mock fixtures or device-local prototype persistence.
+Browser → Next.js feature UI → services/hooks → runtime provider configuration → public APIs or company Business REST API. Partner submissions retain explicitly labelled device-local prototype persistence.
 
-MapLibre renders GIS. TanStack Query is available for repository calls. React context owns only cross-feature prototype preferences. Business logic stays in pure services/configuration.
+MapLibre renders GIS. Public provider calls are isolated in provider classes; company collections use the Business API resource hook. Empty repositories are the safe runtime fallback, so disconnected company data produces an honest empty state rather than fixtures. React context owns only cross-feature prototype preferences. Business logic stays in pure services/configuration.
 
 ## Future
 
-Browser → Vercel Next.js → REST API → NestJS or Go → Supabase PostgreSQL + PostGIS. API repositories replace mock/local repositories through dependency wiring. Feature components and domain models remain stable.
+Browser → Vercel Next.js → REST API → NestJS or Go → Supabase PostgreSQL + PostGIS. The current Business API hook becomes a typed API repository/query adapter while feature components and domain models remain stable.
 
 Boundaries are domain, configuration, repository, provider, service, then feature presentation.
 

@@ -1,13 +1,15 @@
 import type { GeocodingProvider } from "./interfaces";
+import { getApiConnection } from "@/src/services/api-connection.service";
 
 interface NominatimResult { display_name: string; lat: string; lon: string }
 
-const NOMINATIM_ENDPOINT = process.env.NEXT_PUBLIC_NOMINATIM_ENDPOINT || "https://nominatim.openstreetmap.org/search";
 const searchCache = new Map<string, Array<{ label: string; latitude: number; longitude: number }>>();
 let lastRequestAt = 0;
 
 export class NominatimGeocodingProvider implements GeocodingProvider {
   async search(query: string) {
+    const connection = getApiConnection("nominatim");
+    if (!connection.enabled) return [];
     const normalized = query.trim().slice(0, 160);
     if (normalized.length < 2) return [];
     const cacheKey = normalized.toLocaleLowerCase();
@@ -17,7 +19,7 @@ export class NominatimGeocodingProvider implements GeocodingProvider {
     const waitMs = Math.max(0, 1050 - (Date.now() - lastRequestAt));
     if (waitMs) await new Promise((resolve) => window.setTimeout(resolve, waitMs));
     lastRequestAt = Date.now();
-    const url = new URL(NOMINATIM_ENDPOINT);
+    const url = new URL(connection.endpoint);
     url.search = new URLSearchParams({
       q: normalized,
       format: "jsonv2",

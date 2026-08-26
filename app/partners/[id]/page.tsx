@@ -1,3 +1,6 @@
-import type { Metadata } from "next"; import { AppShell } from "@/src/components/layout/app-shell"; import { PartnerDetail } from "@/src/features/partners/partner-detail"; import { catalogService } from "@/src/services/catalog.service";
-export async function generateMetadata({params}:{params:Promise<{id:string}>}):Promise<Metadata>{const{id}=await params;const partner=catalogService.getPartners().find(x=>x.id===id);if(!partner)return{title:"Partner not found | EV Atlas Thailand",openGraph:{images:[]},twitter:{images:[]}};const title=partner.name+" | EV Atlas Thailand";const description="Demo partner portfolio and independently ranked branch opportunities.";return{title,description,openGraph:{title,description,images:[]},twitter:{title,description,images:[]}}}
-export default function PartnerPage(){return <AppShell><PartnerDetail/></AppShell>}
+import type { Metadata } from "next";
+import { AppShell } from "@/src/components/layout/app-shell";
+import { PartnerDetail } from "@/src/features/partners/partner-detail";
+
+export const metadata: Metadata = { title: "Partner | EV Atlas Thailand", description: "Partner and branch data loaded from the configured company Business API.", openGraph: { images: [] }, twitter: { images: [] } };
+export default function PartnerPage() { return <AppShell><PartnerDetail /></AppShell>; }

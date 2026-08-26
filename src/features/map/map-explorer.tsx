@@ -4,41 +4,41 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, Box, Building2, CheckCircle2, CircleDot, CloudDownload, Database, Focus, Fuel,
-  Layers3, LocateFixed, MapPin, Mountain, MousePointer2, Search, Sparkles, Thermometer, Waves, Wind, Zap
+  Gauge, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, Search, Sparkles, Thermometer, Users, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
 import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
-import { SEARCH_LOCATIONS, type SearchLocation } from "@/src/data/mock/search-locations";
 import type { MapEntity } from "@/src/domain/models";
 import type { PublicLocationContext } from "@/src/domain/public-api";
 import { NominatimGeocodingProvider } from "@/src/providers/nominatim-geocoding.provider";
 import { getPublicLocationContext } from "@/src/providers/public-location.providers";
-import { catalogService } from "@/src/services/catalog.service";
-import { analyzeLocation } from "@/src/services/location-analysis.service";
+import { getApiConnection } from "@/src/services/api-connection.service";
+import { analyzeRealLocation } from "@/src/services/location-analysis.service";
 import { recommendSite } from "@/src/services/recommendation-engine";
 import { calculateSiteScore } from "@/src/services/scoring-engine";
 import { useApp } from "@/src/store/app-context";
 
-const MOCK_SITES = catalogService.getSites();
-const MOCK_MAP_ENTITIES = catalogService.getMapEntities();
-const INITIAL_LOCATION = SEARCH_LOCATIONS.find((item) => item.id === "loc-bangna")!;
+const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
 
-const BASE_STYLE: StyleSpecification = {
+function createBaseStyle(): StyleSpecification {
+  const tiles = getApiConnection("osm-tiles");
+  return {
   version: 8,
-  sources: {
+  sources: tiles.enabled ? {
     osm: {
       type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: [tiles.endpoint],
       tileSize: 256,
       maxzoom: 19,
       attribution: "© OpenStreetMap contributors"
     }
-  },
+  } : {},
   layers: [
     { id: "local-background", type: "background", paint: { "background-color": "#e5ede8" } },
-    { id: "osm-tiles", type: "raster", source: "osm", paint: { "raster-opacity": .94, "raster-fade-duration": 0 } }
+    ...(tiles.enabled ? [{ id: "osm-tiles", type: "raster" as const, source: "osm", paint: { "raster-opacity": .94, "raster-fade-duration": 0 } }] : [])
   ]
-};
+  };
+}
 
 const LAYERS = [
   { id: "EV_STATION", label: "EV Stations", labelTh: "สถานีชาร์จ EV", color: "#19a974", default: true },
@@ -50,7 +50,7 @@ const LAYERS = [
   { id: "OPPORTUNITY", label: "Opportunities", labelTh: "พื้นที่โอกาส", color: "#087a5b", default: true }
 ] as const;
 
-type Candidate = Pick<SearchLocation, "id" | "label" | "latitude" | "longitude" | "referenceSiteId"> & { source: "LOCAL" | "OSM" };
+type Candidate = { id: string; label: string; latitude: number; longitude: number; source: "INITIAL" | "OSM" | "MAP" };
 
 function circlePolygon(longitude: number, latitude: number, radiusKm: number) {
   const coordinates: number[][] = [];
@@ -92,8 +92,10 @@ function zoomScaledRadius(radius: { overview: number; normal: number; detail: nu
 }
 
 function ensure3DBuildings(map: MapLibreMap) {
+  const connection = getApiConnection("openfreemap");
+  if (!connection.enabled) throw new Error("OpenFreeMap is disabled");
   if (!map.getSource("openfreemap-buildings")) {
-    map.addSource("openfreemap-buildings", { type: "vector", url: "https://tiles.openfreemap.org/planet" });
+    map.addSource("openfreemap-buildings", { type: "vector", url: connection.endpoint });
   }
   const firstOverlayLayer = ["opportunity-clusters", "entity-clusters", "analysis-fill", "selected-point-halo"]
     .find((layerId) => map.getLayer(layerId));
@@ -122,7 +124,7 @@ function ensure3DBuildings(map: MapLibreMap) {
 export function MapExplorer() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
-  const [location, setLocation] = useState<Candidate>({ ...INITIAL_LOCATION, source: "LOCAL" });
+  const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
   const [radius, setRadius] = useState<number>(3);
   const [area, setArea] = useState<string>("");
   const [query, setQuery] = useState("");
@@ -150,24 +152,16 @@ export function MapExplorer() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  const localResults = useMemo<Candidate[]>(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    if (!normalized) return [];
-    return SEARCH_LOCATIONS
-      .filter((item) => `${item.label} ${item.labelTh} ${item.province} ${item.district}`.toLocaleLowerCase().includes(normalized))
-      .slice(0, 6)
-      .map((item) => ({ ...item, label: language === "th" ? item.labelTh : item.label, source: "LOCAL" }));
-  }, [language, query]);
-  const displayedResults = remoteResults.length ? [...localResults, ...remoteResults].slice(0, 8) : localResults;
+  const localResults: Candidate[] = [];
+  const displayedResults = remoteResults;
 
-  const analysis = useMemo(() => analyzeLocation({
+  const analysis = useMemo(() => analyzeRealLocation({
     label: location.label,
     latitude: location.latitude,
     longitude: location.longitude,
     radiusKm: radius,
-    areaSqm: area ? Number(area) : undefined,
-    referenceSiteId: location.referenceSiteId
-  }), [area, location, radius]);
+    areaSqm: area ? Number(area) : undefined
+  }, publicContext), [area, location, publicContext, radius]);
   const score = useMemo(() => calculateSiteScore(analysis.site.factors), [analysis.site.factors]);
   const recommendation = useMemo(() => recommendSite(analysis.site, score), [analysis.site, score]);
   const visualEntities = useMemo(() => analysis.nearby.map((entity) => {
@@ -264,7 +258,7 @@ export function MapExplorer() {
     setSearching(true);
     setSearchMessage(language === "th" ? "กำลังค้นหาพื้นที่ในประเทศไทย…" : "Searching locations in Thailand…");
     const results = await geocoder.search(query);
-    setRemoteResults(results.map((result, index) => ({ id: `osm-${index}`, ...result, source: "OSM" })));
+    setRemoteResults(results.map((result, index) => ({ id: `osm-${index}`, ...result, source: "OSM" as const })));
     setSearching(false);
     if (!results.length && !localResults.length) setSearchMessage(language === "th" ? "ไม่พบพื้นที่ ลองชื่อเขต จังหวัด หรือพิกัดบนแผนที่" : "No place found. Try a district, province, or click the map.");
     else setSearchMessage("");
@@ -276,7 +270,7 @@ export function MapExplorer() {
     if (cancelled || !container.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: container.current,
-      style: BASE_STYLE,
+      style: createBaseStyle(),
       center: [INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude],
       zoom: 12.2,
       minZoom: THAILAND_MAP_VIEW.minZoom,
@@ -303,7 +297,7 @@ export function MapExplorer() {
       else if (message.includes("tile")) setTileWarning(true);
     });
     map.on("idle", () => {
-      if (map.isSourceLoaded("osm") && map.areTilesLoaded()) {
+      if (map.getSource("osm") && map.isSourceLoaded("osm") && map.areTilesLoaded()) {
         setOnlineTilesReady(true);
         setTileWarning(false);
       }
@@ -322,18 +316,14 @@ export function MapExplorer() {
       setMapReady(true);
       const opportunities = {
         type: "FeatureCollection" as const,
-        features: MOCK_SITES.map((site) => ({
-          type: "Feature" as const,
-          properties: { id: site.id, name: site.name, score: calculateSiteScore(site.factors).overall },
-          geometry: { type: "Point" as const, coordinates: [site.longitude, site.latitude] }
-        }))
+        features: []
       };
       map.addSource("opportunities", { type: "geojson", data: opportunities, cluster: true, clusterRadius: 34, clusterMaxZoom: 11 });
       map.addLayer({ id: "opportunity-clusters", type: "circle", source: "opportunities", filter: ["has", "point_count"], paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.opportunityClusterRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1, MAP_MARKER_STYLE.normalZoom, 2], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
       map.addLayer({ id: "opportunity-cluster-count", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 7, MAP_MARKER_STYLE.normalZoom, 9], "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
       map.addLayer({ id: "opportunity-points", type: "circle", source: "opportunities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.opportunityPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1, MAP_MARKER_STYLE.normalZoom, 2], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
-      map.addSource("entities", { type: "geojson", data: entityCollection(MOCK_MAP_ENTITIES), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
+      map.addSource("entities", { type: "geojson", data: entityCollection([]), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
       map.addLayer({ id: "entity-clusters", type: "circle", source: "entities", filter: ["has", "point_count"], paint: { "circle-color": "#526b62", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.entityClusterRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, .8, MAP_MARKER_STYLE.normalZoom, 1.5], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
       map.addLayer({ id: "entity-points", type: "circle", source: "entities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["match", ["get", "kind"], "EV_STATION", "#19a974", "COMPETITOR", "#ef6b59", "GAS_STATION", "#e5a21a", "POI", "#4b86d8", "#9b62c4"], "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.entityPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, .8, MAP_MARKER_STYLE.normalZoom, 1.5], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
@@ -345,11 +335,6 @@ export function MapExplorer() {
       map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
       map.addLayer({ id: "selected-point", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.selectedPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1.5, MAP_MARKER_STYLE.normalZoom, 3], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
-      map.on("click", "opportunity-points", (event) => {
-        const id = event.features?.[0]?.properties?.id;
-        const place = SEARCH_LOCATIONS.find((item) => item.referenceSiteId === id);
-        if (place) chooseLocation({ ...place, label: languageRef.current === "th" ? place.labelTh : place.label, source: "LOCAL" });
-      });
       map.on("click", "entity-points", (event) => {
         const feature = event.features?.[0];
         if (!feature || feature.geometry.type !== "Point") return;
@@ -364,7 +349,7 @@ export function MapExplorer() {
           label: languageRef.current === "th" ? `จุดที่เลือก ${event.lngLat.lat.toFixed(5)}, ${event.lngLat.lng.toFixed(5)}` : `Selected point ${event.lngLat.lat.toFixed(5)}, ${event.lngLat.lng.toFixed(5)}`,
           latitude: event.lngLat.lat,
           longitude: event.lngLat.lng,
-          source: "LOCAL"
+          source: "MAP"
         });
       });
       map.on("mouseenter", "opportunity-points", () => { map.getCanvas().style.cursor = "pointer"; });
@@ -390,7 +375,7 @@ export function MapExplorer() {
     const map = mapRef.current;
     if (!map?.isStyleLoaded()) return;
     const enabledEntityKinds = new Set(Object.entries(layerState).filter(([, enabled]) => enabled).map(([id]) => id));
-    const entities = [...MOCK_MAP_ENTITIES, ...(publicContext?.osmEntities ?? [])].filter((entity) => enabledEntityKinds.has(entity.kind));
+    const entities = (publicContext?.osmEntities ?? []).filter((entity) => enabledEntityKinds.has(entity.kind));
     (map.getSource("entities") as GeoJSONSource | undefined)?.setData(entityCollection(entities));
     const opportunityVisibility = layerState.OPPORTUNITY ? "visible" : "none";
     ["opportunity-points", "opportunity-clusters", "opportunity-cluster-count"].forEach((id) => map.setLayoutProperty(id, "visibility", opportunityVisibility));
@@ -417,7 +402,7 @@ export function MapExplorer() {
           <input disabled={!interactive} value={query} onChange={(event) => { setQuery(event.target.value); setRemoteResults([]); setSearchMessage(""); }} placeholder={t.searchPlaceholder} aria-label={t.searchPlaceholder} />
           {query && <div className="search-results">
             {displayedResults.map((candidate) => <button type="button" key={`${candidate.source}-${candidate.id}`} onClick={() => chooseLocation(candidate)}>
-              <MapPin /><span><strong>{candidate.label}</strong><small>{candidate.source === "OSM" ? "OpenStreetMap search" : language === "th" ? "ข้อมูลค้นหาสาธิต" : "Demo search index"}</small></span>
+              <MapPin /><span><strong>{candidate.label}</strong><small>OpenStreetMap Nominatim</small></span>
             </button>)}
             {!displayedResults.length && !searching && <p>{language === "th" ? "กด “ค้นหา” เพื่อค้นหาชื่อสถานที่ในประเทศไทย" : "Press Search to look up places in Thailand"}</p>}
           </div>}
@@ -427,7 +412,7 @@ export function MapExplorer() {
       <label className="area-input"><span>{t.area}</span><input inputMode="numeric" min="1" max="1000000" type="number" value={area} onChange={(event) => setArea(event.target.value)} placeholder="e.g. 600" /></label>
     </section>
 
-    <div className="map-disclaimer"><Database />{language === "th" ? "Demo / Mock Data — คะแนนเป็นค่าประเมินเพื่อสาธิต ไม่ใช่ข้อมูลเรียลไทม์" : "Demo / Mock Data — scores are estimates for demonstration, not real-time data"}</div>
+    <div className="map-disclaimer"><Database />{language === "th" ? "REAL PROVIDER MODE — ดึงข้อมูลเมื่อกดตรวจพื้นที่ ผลลัพธ์ยังต้องสำรวจพื้นที่จริง" : "REAL PROVIDER MODE — data is fetched on demand; site survey remains required"}</div>
     {searchMessage && <div className="map-status"><CheckCircle2 />{searchMessage}</div>}
 
     <section className="map-workspace simple-map-workspace">
@@ -465,16 +450,16 @@ export function MapExplorer() {
       </div>
 
       <aside className="map-panel site-panel result-panel">
-        <div className="result-heading"><div><span className="step-label compact"><span>3</span>{t.result}</span><small>{analysis.estimated ? t.estimated : analysis.site.provenance.verifiedStatus}</small></div><div className="score-block"><strong>{score.overall}</strong><span>/100</span></div></div>
+        <div className="result-heading"><div><span className="step-label compact"><span>3</span>{t.result}</span><small>{publicContext ? analysis.site.provenance.verifiedStatus : (language === "th" ? "รอข้อมูล API" : "AWAITING API DATA")}</small></div><div className="score-block"><strong>{publicContext ? score.overall : "—"}</strong>{publicContext && <span>/100</span>}</div></div>
         <h2>{analysis.site.name}</h2>
         <p>{radius} km radius · {analysis.site.province} · {analysis.site.district}</p>
-        <div className={`recommendation-strip ${recommendation.overridden ? "warning" : ""}`}><span>{language === "th" ? "คำแนะนำ" : "Recommendation"}</span><strong>{recommendation.label.replaceAll("_", " ")}</strong><small>{recommendation.stationType.replaceAll("_", " ")}</small></div>
+        <div className={`recommendation-strip ${recommendation.overridden ? "warning" : ""}`}><span>{language === "th" ? "คำแนะนำ" : "Recommendation"}</span><strong>{publicContext ? recommendation.label.replaceAll("_", " ") : (language === "th" ? "กดตรวจพื้นที่นี้" : "CHECK THIS AREA")}</strong><small>{publicContext ? recommendation.stationType.replaceAll("_", " ") : (language === "th" ? "เพื่อดึงข้อมูลจริงจาก API" : "Fetch real provider data first")}</small></div>
 
         <div className="nearby-grid">
-          <div><Zap /><strong>{analysis.counts.evStations}</strong><span>EV stations</span></div>
-          <div><Building2 /><strong>{analysis.counts.competitors}</strong><span>Competitors</span></div>
-          <div><Fuel /><strong>{analysis.counts.gasStations}</strong><span>Gas stations</span></div>
-          <div><MapPin /><strong>{analysis.counts.pois}</strong><span>POIs</span></div>
+          <div><Zap /><strong>{publicContext ? analysis.counts.evStations : "—"}</strong><span>EV stations</span></div>
+          <div><Building2 /><strong>{publicContext ? analysis.counts.competitors : "—"}</strong><span>Competitors</span></div>
+          <div><Fuel /><strong>{publicContext ? analysis.counts.gasStations : "—"}</strong><span>Gas stations</span></div>
+          <div><MapPin /><strong>{publicContext ? analysis.counts.pois : "—"}</strong><span>POIs</span></div>
         </div>
 
         <section className="public-api-card" aria-labelledby="public-api-title">
@@ -484,7 +469,7 @@ export function MapExplorer() {
               <CloudDownload />{publicLoading ? (language === "th" ? "กำลังตรวจ…" : "Checking…") : (language === "th" ? "ตรวจพื้นที่นี้" : "Check this area")}
             </button>
           </div>
-          {!publicContext && <p>{language === "th" ? "กดเมื่อต้องการดึง POI, อากาศ, ระดับความสูง และบริบทการไหลของแม่น้ำสำหรับพิกัดนี้" : "Fetch POIs, weather, elevation, and river-flow context for this coordinate on demand."}</p>}
+          {!publicContext && <p>{language === "th" ? "ดึง EV/ปั๊ม/POI, อากาศ, ความสูง, น้ำท่วม, WorldPop และ TomTom Traffic สำหรับพิกัดนี้" : "Fetch EV/fuel/POIs, weather, elevation, flood, WorldPop and TomTom Traffic for this coordinate."}</p>}
           {publicContext && <>
             <div className="public-api-metrics">
               <div><MapPin /><strong>{publicCounts.evStations + publicCounts.gasStations + publicCounts.pois}</strong><span>OSM places</span></div>
@@ -492,12 +477,14 @@ export function MapExplorer() {
               <div><Wind /><strong>{publicContext.weather?.windSpeedKmh == null ? "Unknown" : `${publicContext.weather.windSpeedKmh} km/h`}</strong><span>Wind</span></div>
               <div><Mountain /><strong>{publicContext.elevationMeters == null ? "Unknown" : `${publicContext.elevationMeters} m`}</strong><span>Elevation</span></div>
               <div><Waves /><strong>{publicContext.hydrology?.maxSevenDayRiverDischargeM3s == null ? "Unknown" : `${publicContext.hydrology.maxSevenDayRiverDischargeM3s.toFixed(1)} m³/s`}</strong><span>Max river flow · 7d</span></div>
+              <div><Users /><strong>{publicContext.population?.densityPerKm2 == null ? "Unknown" : Math.round(publicContext.population.densityPerKm2).toLocaleString()}</strong><span>Population / km²</span></div>
+              <div><Gauge /><strong>{publicContext.traffic?.currentSpeedKmh == null ? "Token needed" : `${publicContext.traffic.currentSpeedKmh} km/h`}</strong><span>Traffic speed</span></div>
             </div>
             <div className="api-data-note">
               <AlertTriangle /><span>{language === "th" ? "ค่าการไหลของแม่น้ำเป็นข้อมูลแบบจำลองความละเอียดประมาณ 5 กม. ไม่ใช่ผลยืนยันความเสี่ยงน้ำท่วมของแปลงที่ดิน" : "River flow is an approximately 5 km model context, not verified parcel-level flood risk."}</span>
             </div>
             {publicContext.errors.length > 0 && <p className="api-errors">{publicContext.errors.join(" · ")}</p>}
-            <small className="api-provenance">OpenStreetMap / Overpass · Open-Meteo · {publicContext.cached ? "Cached response" : new Date(publicContext.fetchedAt).toLocaleString(language === "th" ? "th-TH" : "en-GB")}</small>
+            <small className="api-provenance">OpenStreetMap / Overpass · Open-Meteo · WorldPop · TomTom · {publicContext.cached ? "Cached response" : new Date(publicContext.fetchedAt).toLocaleString(language === "th" ? "th-TH" : "en-GB")}</small>
           </>}
         </section>
 
