@@ -2,6 +2,9 @@
 
 - Demo records are fictional/composite and not real-time.
 - Free tile availability is external; no offline basemap is bundled.
+- Public Nominatim and Overpass endpoints are shared community infrastructure with usage policies and no production SLA; requests may be slow or unavailable.
+- 3D building coverage and height quality depend on OpenStreetMap/OpenFreeMap data and only appear at close zoom levels.
+- Weather is a point-in-time provider snapshot. Elevation is approximate, and river-discharge model output is not verified parcel-level flood risk.
 - Flood, traffic, population, weather, electrical capacity, ownership, and commercial terms are not authoritative.
 - Radius proximity is visual in the prototype; production calculations belong in PostGIS.
 - localStorage submissions are unencrypted, device-local, and not multi-user.

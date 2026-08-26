@@ -16,3 +16,11 @@
 - Added responsive map controls and automated location-analysis coverage.
 - Removed overlapping synthetic road lines and hide the local fallback when online map tiles are ready.
 - Excluded the MapLibre worker from Vite dependency optimization to prevent stale development reload failures.
+
+## 0.3.0 — 2026-08-26
+
+- Added no-key OpenFreeMap 3D buildings rendered with MapLibre.
+- Added on-demand nearby OSM/Overpass, Open-Meteo weather, approximate elevation, and river-discharge context with partial-failure handling.
+- Added provider configuration, environment overrides, attribution, quota/licensing guidance, timeouts, throttling, and browser-memory caching.
+- Prevented pre-hydration clicks from being silently discarded and lazy-loaded the MapLibre runtime.
+- Added desktop/mobile E2E coverage for search, scoring, theme/language, 3D, and public provider context.

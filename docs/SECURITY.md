@@ -9,6 +9,7 @@
 - Central demo permissions for UX and confirmation dialogs for approvals/rejections/config impact.
 - Clear warnings that localStorage and prototype roles are not secure.
 - Patched runtime dependency baseline verified by audit.
+- Public provider calls are user-triggered, bounded, time-limited, and tolerate partial failure. Selected coordinates are sent to OpenStreetMap/Overpass and Open-Meteo only when the user requests public context.
 
 ## Required for production
 

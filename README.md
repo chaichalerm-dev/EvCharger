@@ -7,7 +7,8 @@ All market records are **Demo / Mock Data**, financial outputs are **Simulation 
 ## What works today
 
 - Executive portfolio dashboard and ranked opportunities.
-- MapLibre map with clustered opportunities, EV stations, competitors, gas stations, POIs, partner branches, radius analysis, search, selection, and dropped pins.
+- MapLibre map with clustered opportunities, EV stations, competitors, gas stations, POIs, partner branches, radius analysis, search, selection, dropped pins, and optional OpenFreeMap 3D buildings.
+- On-demand public context from OpenStreetMap/Overpass and Open-Meteo for nearby places, current weather, approximate elevation, and river-discharge context, with partial-failure handling and attribution.
 - Site intelligence for demand, competition, access, POIs, infrastructure gaps, flood risk, area, source quality, score, recommendation, risks, and missing information.
 - Comparison, partner submission, branch ranking, lifecycle decisions, expansion analysis, financial simulation, demo RBAC, failure simulation, Thai/English foundation, and light/dark/system themes.
 

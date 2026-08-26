@@ -1,16 +1,17 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
-  AlertTriangle, Building2, CheckCircle2, CircleDot, Database, Focus, Fuel,
-  Layers3, LocateFixed, MapPin, MousePointer2, Search, Sparkles, Zap
+  AlertTriangle, Box, Building2, CheckCircle2, CircleDot, CloudDownload, Database, Focus, Fuel,
+  Layers3, LocateFixed, MapPin, Mountain, MousePointer2, Search, Sparkles, Thermometer, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
 import { SEARCH_LOCATIONS, type SearchLocation } from "@/src/data/mock/search-locations";
 import type { MapEntity } from "@/src/domain/models";
+import type { PublicLocationContext } from "@/src/domain/public-api";
 import { NominatimGeocodingProvider } from "@/src/providers/nominatim-geocoding.provider";
+import { getPublicLocationContext } from "@/src/providers/public-location.providers";
 import { catalogService } from "@/src/services/catalog.service";
 import { analyzeLocation } from "@/src/services/location-analysis.service";
 import { recommendSite } from "@/src/services/recommendation-engine";
@@ -80,6 +81,29 @@ function entityCollection(entities: MapEntity[]) {
   };
 }
 
+function ensure3DBuildings(map: MapLibreMap) {
+  if (!map.getSource("openfreemap-buildings")) {
+    map.addSource("openfreemap-buildings", { type: "vector", url: "https://tiles.openfreemap.org/planet" });
+  }
+  if (!map.getLayer("3d-buildings")) {
+    map.addLayer({
+      id: "3d-buildings",
+      type: "fill-extrusion",
+      source: "openfreemap-buildings",
+      "source-layer": "building",
+      minzoom: 15,
+      layout: { visibility: "none" },
+      filter: ["!=", ["get", "hide_3d"], true],
+      paint: {
+        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 0], 0, "#d7dfdb", 80, "#7fb8a5", 200, "#4a8f78"],
+        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["coalesce", ["get", "render_height"], 8]],
+        "fill-extrusion-base": ["case", [">=", ["zoom"], 16], ["coalesce", ["get", "render_min_height"], 0], 0],
+        "fill-extrusion-opacity": 0.78
+      }
+    });
+  }
+}
+
 export function MapExplorer() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -93,12 +117,23 @@ export function MapExplorer() {
   const [pinMode, setPinMode] = useState(false);
   const [tileWarning, setTileWarning] = useState(false);
   const [onlineTilesReady, setOnlineTilesReady] = useState(false);
+  const [interactive, setInteractive] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const [is3D, setIs3D] = useState(false);
+  const is3DRef = useRef(false);
+  const [threeDStatus, setThreeDStatus] = useState<"IDLE" | "LOADING" | "READY" | "UNAVAILABLE">("IDLE");
+  const [publicContext, setPublicContext] = useState<PublicLocationContext | null>(null);
+  const [publicLoading, setPublicLoading] = useState(false);
   const [layerState, setLayerState] = useState<Record<string, boolean>>(() => Object.fromEntries(LAYERS.map((layer) => [layer.id, layer.default])));
   const { language } = useApp();
   const languageRef = useRef(language);
   const geocoder = useMemo(() => new NominatimGeocodingProvider(), []);
 
   useEffect(() => { languageRef.current = language; }, [language]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setInteractive(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const localResults = useMemo<Candidate[]>(() => {
     const normalized = query.trim().toLocaleLowerCase();
@@ -130,14 +165,66 @@ export function MapExplorer() {
       top: Math.max(7, Math.min(93, 50 - latitudeKm / extent * 44))
     };
   }), [analysis.nearby, location.latitude, location.longitude, radius]);
+  const publicCounts = useMemo(() => ({
+    evStations: publicContext?.osmEntities.filter((entity) => entity.kind === "EV_STATION").length ?? 0,
+    gasStations: publicContext?.osmEntities.filter((entity) => entity.kind === "GAS_STATION").length ?? 0,
+    pois: publicContext?.osmEntities.filter((entity) => entity.kind === "POI").length ?? 0
+  }), [publicContext]);
 
   const chooseLocation = (candidate: Candidate) => {
     setLocation(candidate);
+    setPublicContext(null);
     setQuery("");
     setRemoteResults([]);
     setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — ผลวิเคราะห์อัปเดตทันที" : "Location selected — analysis updated");
     setPinMode(false);
     mapRef.current?.easeTo({ center: [candidate.longitude, candidate.latitude], zoom: 13.5, duration: 650 });
+  };
+
+  const changeRadius = (value: number) => {
+    setRadius(value);
+    setPublicContext(null);
+  };
+
+  const loadPublicData = async () => {
+    setPublicLoading(true);
+    try {
+      const context = await getPublicLocationContext({ latitude: location.latitude, longitude: location.longitude }, radius);
+      setPublicContext(context);
+    } finally {
+      setPublicLoading(false);
+    }
+  };
+
+  const toggle3D = () => {
+    const map = mapRef.current;
+    const next = !is3D;
+    setIs3D(next);
+    is3DRef.current = next;
+    if (!map) {
+      setThreeDStatus(next ? "UNAVAILABLE" : "IDLE");
+      return;
+    }
+    const applyMode = () => {
+      if (!map.isStyleLoaded()) return false;
+      if (next) ensure3DBuildings(map);
+      if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", next ? "visible" : "none");
+      map.easeTo({
+        pitch: next ? 55 : 0,
+        bearing: next ? -18 : 0,
+        zoom: next ? Math.max(map.getZoom(), 15.3) : Math.min(map.getZoom(), 14),
+        duration: 700
+      });
+      setThreeDStatus(next ? "LOADING" : "IDLE");
+      return true;
+    };
+    if (!applyMode() && next) {
+      setThreeDStatus("LOADING");
+      window.setTimeout(() => {
+        if (!is3DRef.current) return;
+        if (!applyMode()) setThreeDStatus("UNAVAILABLE");
+      }, 1200);
+    }
   };
 
   const searchPlaces = async (event: FormEvent) => {
@@ -157,7 +244,9 @@ export function MapExplorer() {
   };
 
   useEffect(() => {
-    if (!container.current || mapRef.current) return;
+    let cancelled = false;
+    void import("maplibre-gl").then((maplibregl) => {
+    if (cancelled || !container.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: container.current,
       style: BASE_STYLE,
@@ -166,10 +255,20 @@ export function MapExplorer() {
       attributionControl: false
     });
     mapRef.current = map;
+    setMapReady(true);
+    const markMapReady = () => {
+      if (!map.isStyleLoaded()) return;
+      setMapReady(true);
+      map.off("styledata", markMapReady);
+    };
+    map.on("styledata", markMapReady);
+    markMapReady();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
-      if (String(event.error?.message ?? "").toLowerCase().includes("tile")) setTileWarning(true);
+      const message = String(event.error?.message ?? "").toLowerCase();
+      if (message.includes("openfreemap")) setThreeDStatus("UNAVAILABLE");
+      else if (message.includes("tile")) setTileWarning(true);
     });
     map.on("idle", () => {
       if (map.isSourceLoaded("osm") && map.areTilesLoaded()) {
@@ -177,7 +276,11 @@ export function MapExplorer() {
         setTileWarning(false);
       }
     });
+    map.on("sourcedata", (event) => {
+      if (event.sourceId === "openfreemap-buildings" && event.isSourceLoaded) setThreeDStatus("READY");
+    });
     map.on("load", () => {
+      setMapReady(true);
       const opportunities = {
         type: "FeatureCollection" as const,
         features: MOCK_SITES.map((site) => ({
@@ -229,7 +332,12 @@ export function MapExplorer() {
       map.on("mouseleave", "opportunity-points", () => { map.getCanvas().style.cursor = "crosshair"; });
       map.getCanvas().style.cursor = "crosshair";
     });
-    return () => { map.remove(); mapRef.current = null; };
+    });
+    return () => {
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+    };
   }, []);
 
   useEffect(() => {
@@ -243,12 +351,12 @@ export function MapExplorer() {
     const map = mapRef.current;
     if (!map?.isStyleLoaded()) return;
     const enabledEntityKinds = new Set(Object.entries(layerState).filter(([, enabled]) => enabled).map(([id]) => id));
-    const entities = MOCK_MAP_ENTITIES.filter((entity) => enabledEntityKinds.has(entity.kind));
+    const entities = [...MOCK_MAP_ENTITIES, ...(publicContext?.osmEntities ?? [])].filter((entity) => enabledEntityKinds.has(entity.kind));
     (map.getSource("entities") as GeoJSONSource | undefined)?.setData(entityCollection(entities));
     const opportunityVisibility = layerState.OPPORTUNITY ? "visible" : "none";
     ["opportunity-points", "opportunity-clusters", "opportunity-cluster-count"].forEach((id) => map.setLayoutProperty(id, "visibility", opportunityVisibility));
     map.setLayoutProperty("analysis-risk-fill", "visibility", layerState.FLOOD ? "visible" : "none");
-  }, [layerState]);
+  }, [layerState, publicContext]);
 
   const t = {
     title: language === "th" ? "ค้นหาและวิเคราะห์พื้นที่" : "Find & analyze a location",
@@ -267,7 +375,7 @@ export function MapExplorer() {
       <form className="map-search-form" onSubmit={searchPlaces}>
         <div className="map-search">
           <Search />
-          <input value={query} onChange={(event) => { setQuery(event.target.value); setRemoteResults([]); setSearchMessage(""); }} placeholder={t.searchPlaceholder} aria-label={t.searchPlaceholder} />
+          <input disabled={!interactive} value={query} onChange={(event) => { setQuery(event.target.value); setRemoteResults([]); setSearchMessage(""); }} placeholder={t.searchPlaceholder} aria-label={t.searchPlaceholder} />
           {query && <div className="search-results">
             {displayedResults.map((candidate) => <button type="button" key={`${candidate.source}-${candidate.id}`} onClick={() => chooseLocation(candidate)}>
               <MapPin /><span><strong>{candidate.label}</strong><small>{candidate.source === "OSM" ? "OpenStreetMap search" : language === "th" ? "ข้อมูลค้นหาสาธิต" : "Demo search index"}</small></span>
@@ -275,7 +383,7 @@ export function MapExplorer() {
             {!displayedResults.length && !searching && <p>{language === "th" ? "กด “ค้นหา” เพื่อค้นหาชื่อสถานที่ในประเทศไทย" : "Press Search to look up places in Thailand"}</p>}
           </div>}
         </div>
-        <button className="btn primary search-submit" type="submit" disabled={searching}>{searching ? "…" : t.analyze}</button>
+        <button className="btn primary search-submit" type="submit" disabled={!interactive || searching}>{searching ? "…" : t.analyze}</button>
       </form>
       <label className="area-input"><span>{t.area}</span><input inputMode="numeric" min="1" max="1000000" type="number" value={area} onChange={(event) => setArea(event.target.value)} placeholder="e.g. 600" /></label>
     </section>
@@ -293,7 +401,7 @@ export function MapExplorer() {
 
         <div className="panel-divider" />
         <div className="step-label"><span>2</span>{language === "th" ? "เลือกรัศมีวิเคราะห์" : "Choose analysis radius"}</div>
-        <div className="radius-options large">{RADIUS_OPTIONS_KM.map((value) => <button className={radius === value ? "active" : ""} onClick={() => setRadius(value)} key={value}>{value} km</button>)}</div>
+        <div className="radius-options large">{RADIUS_OPTIONS_KM.map((value) => <button className={radius === value ? "active" : ""} onClick={() => changeRadius(value)} key={value}>{value} km</button>)}</div>
 
         <details className="layer-details">
           <summary><Layers3 />{language === "th" ? "ชั้นข้อมูลบนแผนที่" : "Map layers"}<span>{Object.values(layerState).filter(Boolean).length}</span></summary>
@@ -311,7 +419,9 @@ export function MapExplorer() {
         </div>
         <div className="map-instruction"><MousePointer2 />{language === "th" ? "คลิกจุดที่สนใจบนแผนที่" : "Click a point to analyze it"}</div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
-        <button className="map-float-btn" onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: 13.5, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
+        <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + OpenFreeMap 3D buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
+        {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`}><Box />OpenFreeMap 3D · {threeDStatus}</div>}
+        <button className="map-float-btn" disabled={!mapReady} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: 13.5, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
       </div>
 
       <aside className="map-panel site-panel result-panel">
@@ -326,6 +436,30 @@ export function MapExplorer() {
           <div><Fuel /><strong>{analysis.counts.gasStations}</strong><span>Gas stations</span></div>
           <div><MapPin /><strong>{analysis.counts.pois}</strong><span>POIs</span></div>
         </div>
+
+        <section className="public-api-card" aria-labelledby="public-api-title">
+          <div className="public-api-heading">
+            <div><span className="api-kicker">FREE PUBLIC DATA</span><strong id="public-api-title">{language === "th" ? "ตรวจข้อมูลพื้นที่จาก API" : "Check public location APIs"}</strong></div>
+            <button className="btn api-fetch-btn" type="button" onClick={loadPublicData} disabled={publicLoading}>
+              <CloudDownload />{publicLoading ? (language === "th" ? "กำลังตรวจ…" : "Checking…") : (language === "th" ? "ตรวจพื้นที่นี้" : "Check this area")}
+            </button>
+          </div>
+          {!publicContext && <p>{language === "th" ? "กดเมื่อต้องการดึง POI, อากาศ, ระดับความสูง และบริบทการไหลของแม่น้ำสำหรับพิกัดนี้" : "Fetch POIs, weather, elevation, and river-flow context for this coordinate on demand."}</p>}
+          {publicContext && <>
+            <div className="public-api-metrics">
+              <div><MapPin /><strong>{publicCounts.evStations + publicCounts.gasStations + publicCounts.pois}</strong><span>OSM places</span></div>
+              <div><Thermometer /><strong>{publicContext.weather?.temperatureC == null ? "Unknown" : `${publicContext.weather.temperatureC}°C`}</strong><span>Temperature</span></div>
+              <div><Wind /><strong>{publicContext.weather?.windSpeedKmh == null ? "Unknown" : `${publicContext.weather.windSpeedKmh} km/h`}</strong><span>Wind</span></div>
+              <div><Mountain /><strong>{publicContext.elevationMeters == null ? "Unknown" : `${publicContext.elevationMeters} m`}</strong><span>Elevation</span></div>
+              <div><Waves /><strong>{publicContext.hydrology?.maxSevenDayRiverDischargeM3s == null ? "Unknown" : `${publicContext.hydrology.maxSevenDayRiverDischargeM3s.toFixed(1)} m³/s`}</strong><span>Max river flow · 7d</span></div>
+            </div>
+            <div className="api-data-note">
+              <AlertTriangle /><span>{language === "th" ? "ค่าการไหลของแม่น้ำเป็นข้อมูลแบบจำลองความละเอียดประมาณ 5 กม. ไม่ใช่ผลยืนยันความเสี่ยงน้ำท่วมของแปลงที่ดิน" : "River flow is an approximately 5 km model context, not verified parcel-level flood risk."}</span>
+            </div>
+            {publicContext.errors.length > 0 && <p className="api-errors">{publicContext.errors.join(" · ")}</p>}
+            <small className="api-provenance">OpenStreetMap / Overpass · Open-Meteo · {publicContext.cached ? "Cached response" : new Date(publicContext.fetchedAt).toLocaleString(language === "th" ? "th-TH" : "en-GB")}</small>
+          </>}
+        </section>
 
         <dl className="mini-grid result-facts">
           <div><dt>{language === "th" ? "พื้นที่" : "Area"}</dt><dd>{analysis.site.areaSqm ? `${analysis.site.areaSqm.toLocaleString()} m²` : t.survey}</dd></div>
