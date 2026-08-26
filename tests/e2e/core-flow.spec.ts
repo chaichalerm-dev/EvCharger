@@ -35,6 +35,8 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await page.route("**/flood-api.open-meteo.com/v1/flood**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ daily: { river_discharge: [2, 3.5, 2.8] } }) }));
 
   await page.goto("/map");
+  await expect(page.locator(".map-canvas")).toHaveAttribute("data-country", "TH");
+  await expect(page.locator(".map-country-badge")).toContainText("Thailand coverage");
   const threeD = page.locator(".map-3d-btn");
   await expect(threeD).toHaveText("3D");
   await threeD.click();

@@ -7,6 +7,7 @@ import {
   Layers3, LocateFixed, MapPin, Mountain, MousePointer2, Search, Sparkles, Thermometer, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
+import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
 import { SEARCH_LOCATIONS, type SearchLocation } from "@/src/data/mock/search-locations";
 import type { MapEntity } from "@/src/domain/models";
 import type { PublicLocationContext } from "@/src/domain/public-api";
@@ -85,6 +86,8 @@ function ensure3DBuildings(map: MapLibreMap) {
   if (!map.getSource("openfreemap-buildings")) {
     map.addSource("openfreemap-buildings", { type: "vector", url: "https://tiles.openfreemap.org/planet" });
   }
+  const firstOverlayLayer = ["opportunity-clusters", "entity-clusters", "analysis-fill", "selected-point-halo"]
+    .find((layerId) => map.getLayer(layerId));
   if (!map.getLayer("3d-buildings")) {
     map.addLayer({
       id: "3d-buildings",
@@ -101,7 +104,9 @@ function ensure3DBuildings(map: MapLibreMap) {
         "fill-extrusion-opacity": 0.9,
         "fill-extrusion-vertical-gradient": true
       }
-    });
+    }, firstOverlayLayer);
+  } else if (firstOverlayLayer) {
+    map.moveLayer("3d-buildings", firstOverlayLayer);
   }
 }
 
@@ -265,6 +270,10 @@ export function MapExplorer() {
       style: BASE_STYLE,
       center: [INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude],
       zoom: 12.2,
+      minZoom: THAILAND_MAP_VIEW.minZoom,
+      maxZoom: THAILAND_MAP_VIEW.maxZoom,
+      maxBounds: THAILAND_MAP_VIEW.bounds,
+      renderWorldCopies: THAILAND_MAP_VIEW.renderWorldCopies,
       attributionControl: false,
       canvasContextAttributes: { antialias: true }
     });
@@ -310,22 +319,22 @@ export function MapExplorer() {
           geometry: { type: "Point" as const, coordinates: [site.longitude, site.latitude] }
         }))
       };
-      map.addSource("opportunities", { type: "geojson", data: opportunities, cluster: true, clusterRadius: 40, clusterMaxZoom: 11 });
-      map.addLayer({ id: "opportunity-clusters", type: "circle", source: "opportunities", filter: ["has", "point_count"], paint: { "circle-color": "#087a5b", "circle-radius": ["step", ["get", "point_count"], 16, 6, 21], "circle-stroke-width": 3, "circle-stroke-color": "#fff" } });
-      map.addLayer({ id: "opportunity-cluster-count", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 11 }, paint: { "text-color": "#fff" } });
-      map.addLayer({ id: "opportunity-points", type: "circle", source: "opportunities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#087a5b", "circle-radius": 8, "circle-stroke-width": 3, "circle-stroke-color": "#fff" } });
+      map.addSource("opportunities", { type: "geojson", data: opportunities, cluster: true, clusterRadius: 34, clusterMaxZoom: 11 });
+      map.addLayer({ id: "opportunity-clusters", type: "circle", source: "opportunities", filter: ["has", "point_count"], paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.opportunityClusterRadius, "circle-stroke-width": 2, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "opportunity-cluster-count", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 9, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
+      map.addLayer({ id: "opportunity-points", type: "circle", source: "opportunities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.opportunityPointRadius, "circle-stroke-width": 2, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
-      map.addSource("entities", { type: "geojson", data: entityCollection(MOCK_MAP_ENTITIES), cluster: true, clusterRadius: 34, clusterMaxZoom: 13 });
-      map.addLayer({ id: "entity-clusters", type: "circle", source: "entities", filter: ["has", "point_count"], paint: { "circle-color": "#526b62", "circle-radius": 14, "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
-      map.addLayer({ id: "entity-points", type: "circle", source: "entities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["match", ["get", "kind"], "EV_STATION", "#19a974", "COMPETITOR", "#ef6b59", "GAS_STATION", "#e5a21a", "POI", "#4b86d8", "#9b62c4"], "circle-radius": 7, "circle-stroke-width": 2, "circle-stroke-color": "#fff" } });
+      map.addSource("entities", { type: "geojson", data: entityCollection(MOCK_MAP_ENTITIES), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
+      map.addLayer({ id: "entity-clusters", type: "circle", source: "entities", filter: ["has", "point_count"], paint: { "circle-color": "#526b62", "circle-radius": MAP_MARKER_STYLE.entityClusterRadius, "circle-stroke-width": 1.5, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "entity-points", type: "circle", source: "entities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["match", ["get", "kind"], "EV_STATION", "#19a974", "COMPETITOR", "#ef6b59", "GAS_STATION", "#e5a21a", "POI", "#4b86d8", "#9b62c4"], "circle-radius": MAP_MARKER_STYLE.entityPointRadius, "circle-stroke-width": 1.5, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
       map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude, 3) });
       map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#087a5b", "fill-opacity": .11 } });
       map.addLayer({ id: "analysis-risk-fill", type: "fill", source: "analysis-radius", layout: { visibility: "none" }, paint: { "fill-color": "#7a71d8", "fill-opacity": .22 } });
       map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#087a5b", "line-width": 2.5, "line-dasharray": [2, 2] } });
       map.addSource("selected-point", { type: "geojson", data: pointFeature(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude) });
-      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": 17, "circle-opacity": .18 } });
-      map.addLayer({ id: "selected-point", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": 9, "circle-stroke-width": 4, "circle-stroke-color": "#fff" } });
+      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.selectedHaloRadius, "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "selected-point", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.selectedPointRadius, "circle-stroke-width": 3, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
       map.on("click", "opportunity-points", (event) => {
         const id = event.features?.[0]?.properties?.id;
@@ -431,7 +440,7 @@ export function MapExplorer() {
       </aside>
 
       <div className="map-canvas-wrap">
-        <div ref={container} className="map-canvas" aria-label={language === "th" ? "แผนที่เลือกพื้นที่สำหรับวิเคราะห์" : "Interactive map for selecting an analysis location"} />
+        <div ref={container} className="map-canvas" data-country={THAILAND_MAP_VIEW.countryCode} aria-label={language === "th" ? "แผนที่เลือกพื้นที่สำหรับวิเคราะห์" : "Interactive map for selecting an analysis location"} />
         <div className={`fallback-map-visual ${onlineTilesReady ? "online" : ""}`} aria-hidden="true">
           <span className="dom-place-label label-a">{analysis.site.district}</span><span className="dom-place-label label-b">{analysis.site.province}</span>
           <i className="dom-radius" style={{ width: `${Math.min(82, 24 + radius * 6)}%`, aspectRatio: "1" }} />
@@ -439,6 +448,7 @@ export function MapExplorer() {
           {visualEntities.map((entity) => <i key={entity.id} title={entity.name} className={`dom-entity entity-${entity.kind.toLowerCase()}`} style={{ left: `${entity.left}%`, top: `${entity.top}%` }} />)}
         </div>
         <div className="map-instruction"><MousePointer2 />{language === "th" ? "คลิกจุดที่สนใจบนแผนที่" : "Click a point to analyze it"}</div>
+        <div className="map-country-badge"><MapPin />{language === "th" ? "ขอบเขตประเทศไทย" : "Thailand coverage"}</div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
         <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + OpenFreeMap 3D buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
         {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`}><Box />{threeDStatus === "READY" ? (language === "th" ? "อาคาร 3D พร้อมใช้งาน" : "3D buildings ready") : threeDStatus === "NO_BUILDINGS" ? (language === "th" ? "ไม่พบอาคาร 3D บริเวณนี้" : "No 3D buildings in view") : `OpenFreeMap 3D · ${threeDStatus}`}</div>}

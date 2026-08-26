@@ -25,3 +25,6 @@
 - Prevented pre-hydration clicks from being silently discarded and lazy-loaded the MapLibre runtime.
 - Added desktop/mobile E2E coverage for search, scoring, theme/language, 3D, and public provider context.
 - Fixed the building-extrusion base expression, increased the 3D camera zoom, and now report readiness only when building features are actually rendered.
+- Kept 3D buildings below opportunity, entity, analysis, and selected-location markers.
+- Constrained prototype map navigation/search to Thailand and made the active coverage explicit.
+- Reduced marker footprints and fixed marker scale/alignment to the viewport so zoom and 3D pitch do not make points cover the map.
