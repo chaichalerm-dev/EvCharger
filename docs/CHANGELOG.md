@@ -28,3 +28,4 @@
 - Kept 3D buildings below opportunity, entity, analysis, and selected-location markers.
 - Constrained prototype map navigation/search to Thailand and made the active coverage explicit.
 - Reduced marker footprints and fixed marker scale/alignment to the viewport so zoom and 3D pitch do not make points cover the map.
+- Changed markers to capped zoom interpolation so they become smaller—not visually larger—when zooming out to province or Thailand overview levels.

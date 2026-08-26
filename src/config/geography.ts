@@ -16,10 +16,13 @@ export const THAILAND_MAP_VIEW = {
 export const MAP_MARKER_STYLE = {
   pitchAlignment: "viewport",
   pitchScale: "viewport",
-  opportunityClusterRadius: 12,
-  opportunityPointRadius: 6,
-  entityClusterRadius: 10,
-  entityPointRadius: 5.5,
-  selectedHaloRadius: 12,
-  selectedPointRadius: 7
+  overviewZoom: 5.2,
+  normalZoom: 12.2,
+  detailZoom: 16.2,
+  opportunityClusterRadius: { overview: 7, normal: 10, detail: 12 },
+  opportunityPointRadius: { overview: 3, normal: 5, detail: 6 },
+  entityClusterRadius: { overview: 6, normal: 8.5, detail: 10 },
+  entityPointRadius: { overview: 2.5, normal: 4.5, detail: 5.5 },
+  selectedHaloRadius: { overview: 7, normal: 10, detail: 12 },
+  selectedPointRadius: { overview: 4, normal: 6, detail: 7 }
 } as const;

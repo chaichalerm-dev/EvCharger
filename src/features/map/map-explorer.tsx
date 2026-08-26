@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, Box, Building2, CheckCircle2, CircleDot, CloudDownload, Database, Focus, Fuel,
   Layers3, LocateFixed, MapPin, Mountain, MousePointer2, Search, Sparkles, Thermometer, Waves, Wind, Zap
@@ -80,6 +80,15 @@ function entityCollection(entities: MapEntity[]) {
       geometry: { type: "Point" as const, coordinates: [entity.longitude, entity.latitude] }
     }))
   };
+}
+
+function zoomScaledRadius(radius: { overview: number; normal: number; detail: number }): ExpressionSpecification {
+  return [
+    "interpolate", ["linear"], ["zoom"],
+    MAP_MARKER_STYLE.overviewZoom, radius.overview,
+    MAP_MARKER_STYLE.normalZoom, radius.normal,
+    MAP_MARKER_STYLE.detailZoom, radius.detail
+  ];
 }
 
 function ensure3DBuildings(map: MapLibreMap) {
@@ -320,21 +329,21 @@ export function MapExplorer() {
         }))
       };
       map.addSource("opportunities", { type: "geojson", data: opportunities, cluster: true, clusterRadius: 34, clusterMaxZoom: 11 });
-      map.addLayer({ id: "opportunity-clusters", type: "circle", source: "opportunities", filter: ["has", "point_count"], paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.opportunityClusterRadius, "circle-stroke-width": 2, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "opportunity-cluster-count", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": 9, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
-      map.addLayer({ id: "opportunity-points", type: "circle", source: "opportunities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.opportunityPointRadius, "circle-stroke-width": 2, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "opportunity-clusters", type: "circle", source: "opportunities", filter: ["has", "point_count"], paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.opportunityClusterRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1, MAP_MARKER_STYLE.normalZoom, 2], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "opportunity-cluster-count", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 7, MAP_MARKER_STYLE.normalZoom, 9], "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
+      map.addLayer({ id: "opportunity-points", type: "circle", source: "opportunities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.opportunityPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1, MAP_MARKER_STYLE.normalZoom, 2], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
       map.addSource("entities", { type: "geojson", data: entityCollection(MOCK_MAP_ENTITIES), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
-      map.addLayer({ id: "entity-clusters", type: "circle", source: "entities", filter: ["has", "point_count"], paint: { "circle-color": "#526b62", "circle-radius": MAP_MARKER_STYLE.entityClusterRadius, "circle-stroke-width": 1.5, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "entity-points", type: "circle", source: "entities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["match", ["get", "kind"], "EV_STATION", "#19a974", "COMPETITOR", "#ef6b59", "GAS_STATION", "#e5a21a", "POI", "#4b86d8", "#9b62c4"], "circle-radius": MAP_MARKER_STYLE.entityPointRadius, "circle-stroke-width": 1.5, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "entity-clusters", type: "circle", source: "entities", filter: ["has", "point_count"], paint: { "circle-color": "#526b62", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.entityClusterRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, .8, MAP_MARKER_STYLE.normalZoom, 1.5], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "entity-points", type: "circle", source: "entities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["match", ["get", "kind"], "EV_STATION", "#19a974", "COMPETITOR", "#ef6b59", "GAS_STATION", "#e5a21a", "POI", "#4b86d8", "#9b62c4"], "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.entityPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, .8, MAP_MARKER_STYLE.normalZoom, 1.5], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
       map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude, 3) });
       map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#087a5b", "fill-opacity": .11 } });
       map.addLayer({ id: "analysis-risk-fill", type: "fill", source: "analysis-radius", layout: { visibility: "none" }, paint: { "fill-color": "#7a71d8", "fill-opacity": .22 } });
       map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#087a5b", "line-width": 2.5, "line-dasharray": [2, 2] } });
       map.addSource("selected-point", { type: "geojson", data: pointFeature(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude) });
-      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.selectedHaloRadius, "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "selected-point", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": MAP_MARKER_STYLE.selectedPointRadius, "circle-stroke-width": 3, "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "selected-point", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.selectedPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1.5, MAP_MARKER_STYLE.normalZoom, 3], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
 
       map.on("click", "opportunity-points", (event) => {
         const id = event.features?.[0]?.properties?.id;
