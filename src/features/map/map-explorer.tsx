@@ -69,22 +69,6 @@ function pointFeature(longitude: number, latitude: number) {
   return { type: "Feature" as const, properties: {}, geometry: { type: "Point" as const, coordinates: [longitude, latitude] } };
 }
 
-function demoRoads(longitude: number, latitude: number) {
-  const spread = .035;
-  const features = [
-    [[longitude - spread, latitude - .012], [longitude + spread, latitude + .014]],
-    [[longitude - spread, latitude + .016], [longitude + spread, latitude - .018]],
-    [[longitude - .018, latitude - spread], [longitude + .012, latitude + spread]],
-    [[longitude + .025, latitude - spread], [longitude + .020, latitude + spread]],
-    [[longitude - spread, latitude + .001], [longitude + spread, latitude + .001]]
-  ].map((coordinates, index) => ({
-    type: "Feature" as const,
-    properties: { width: index < 2 ? 4 : 2 },
-    geometry: { type: "LineString" as const, coordinates }
-  }));
-  return { type: "FeatureCollection" as const, features };
-}
-
 function entityCollection(entities: MapEntity[]) {
   return {
     type: "FeatureCollection" as const,
@@ -108,6 +92,7 @@ export function MapExplorer() {
   const [searchMessage, setSearchMessage] = useState("");
   const [pinMode, setPinMode] = useState(false);
   const [tileWarning, setTileWarning] = useState(false);
+  const [onlineTilesReady, setOnlineTilesReady] = useState(false);
   const [layerState, setLayerState] = useState<Record<string, boolean>>(() => Object.fromEntries(LAYERS.map((layer) => [layer.id, layer.default])));
   const { language } = useApp();
   const languageRef = useRef(language);
@@ -186,11 +171,13 @@ export function MapExplorer() {
     map.on("error", (event) => {
       if (String(event.error?.message ?? "").toLowerCase().includes("tile")) setTileWarning(true);
     });
+    map.on("idle", () => {
+      if (map.isSourceLoaded("osm") && map.areTilesLoaded()) {
+        setOnlineTilesReady(true);
+        setTileWarning(false);
+      }
+    });
     map.on("load", () => {
-      map.addSource("demo-roads", { type: "geojson", data: demoRoads(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude) });
-      map.addLayer({ id: "demo-road-casing", type: "line", source: "demo-roads", paint: { "line-color": "#c5d2cc", "line-width": ["+", ["get", "width"], 5], "line-opacity": .72 } });
-      map.addLayer({ id: "demo-roads", type: "line", source: "demo-roads", paint: { "line-color": "#ffffff", "line-width": ["+", ["get", "width"], 2], "line-opacity": .9 } });
-
       const opportunities = {
         type: "FeatureCollection" as const,
         features: MOCK_SITES.map((site) => ({
@@ -250,7 +237,6 @@ export function MapExplorer() {
     if (!map?.isStyleLoaded()) return;
     (map.getSource("analysis-radius") as GeoJSONSource | undefined)?.setData(circlePolygon(location.longitude, location.latitude, radius));
     (map.getSource("selected-point") as GeoJSONSource | undefined)?.setData(pointFeature(location.longitude, location.latitude));
-    (map.getSource("demo-roads") as GeoJSONSource | undefined)?.setData(demoRoads(location.longitude, location.latitude));
   }, [location, radius]);
 
   useEffect(() => {
@@ -317,8 +303,7 @@ export function MapExplorer() {
 
       <div className="map-canvas-wrap">
         <div ref={container} className="map-canvas" aria-label={language === "th" ? "แผนที่เลือกพื้นที่สำหรับวิเคราะห์" : "Interactive map for selecting an analysis location"} />
-        <div className="fallback-map-visual" aria-hidden="true">
-          <i className="dom-road road-a" /><i className="dom-road road-b" /><i className="dom-road road-c" /><i className="dom-road road-d" /><i className="dom-road road-e" />
+        <div className={`fallback-map-visual ${onlineTilesReady ? "online" : ""}`} aria-hidden="true">
           <span className="dom-place-label label-a">{analysis.site.district}</span><span className="dom-place-label label-b">{analysis.site.province}</span>
           <i className="dom-radius" style={{ width: `${Math.min(82, 24 + radius * 6)}%`, aspectRatio: "1" }} />
           <i className="dom-selected"><span /></i>

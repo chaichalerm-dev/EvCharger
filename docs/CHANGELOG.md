@@ -14,3 +14,5 @@
 - Added local Thailand place search with optional OpenStreetMap/Nominatim lookup.
 - Added a visible local map context layer so external tile failure no longer leaves a blank map.
 - Added responsive map controls and automated location-analysis coverage.
+- Removed overlapping synthetic road lines and hide the local fallback when online map tiles are ready.
+- Excluded the MapLibre worker from Vite dependency optimization to prevent stale development reload failures.
