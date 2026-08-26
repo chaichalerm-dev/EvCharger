@@ -46,3 +46,5 @@
 - Added language-aware document metadata and bundled Noto Sans Thai/Noto Sans font selection.
 - Localized primary navigation, settings, analysis, portfolio, opportunity, partner, branch, and comparison workflows in Thai and English.
 - Added E2E coverage for first-run language/theme behavior and sidebar collapse persistence.
+- Fixed generic button styles overriding responsive visibility, which had exposed desktop, mobile, and close controls together.
+- Simplified navigation to one contextual control: collapse/expand on desktop and menu/close on mobile, with improved top-bar and drawer alignment.

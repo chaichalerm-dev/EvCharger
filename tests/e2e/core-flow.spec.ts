@@ -91,3 +91,21 @@ test("desktop sidebar can collapse, persist and expand", async ({ page }, testIn
   await page.getByRole("button", { name: "Expand sidebar" }).click();
   await expect(page.locator(".app-shell")).not.toHaveClass(/sidebar-collapsed/);
 });
+
+test("shows only one sidebar control for each responsive layout", async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
+  await page.goto("/");
+  await expect(page.locator(".sidebar-mobile-close")).toHaveCount(0);
+
+  if (testInfo.project.name === "mobile") {
+    await expect(page.getByRole("button", { name: "Open navigation" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Collapse sidebar" })).toBeHidden();
+    await page.getByRole("button", { name: "Open navigation" }).click();
+    await expect(page.getByRole("button", { name: "Close navigation" })).toBeVisible();
+    await expect(page.locator("#primary-sidebar")).toBeVisible();
+    await expect(page.locator("#primary-sidebar")).toHaveCSS("top", "60px");
+  } else {
+    await expect(page.getByRole("button", { name: "Collapse sidebar" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Open navigation" })).toBeHidden();
+  }
+});
