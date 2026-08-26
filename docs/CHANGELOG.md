@@ -38,3 +38,11 @@
 - Added a Business API resource adapter for sites, partners, branches, and opportunities.
 - Kept API tokens in page memory only and documented the required production backend proxy.
 - Updated critical unit/E2E coverage and provider documentation.
+
+## 0.5.0 — 2026-08-26
+
+- Added a collapsible desktop sidebar with device-local persistence and accessible labels; retained an explicit mobile navigation drawer.
+- Changed first-run defaults to Thai and light mode while preserving saved user preferences.
+- Added language-aware document metadata and bundled Noto Sans Thai/Noto Sans font selection.
+- Localized primary navigation, settings, analysis, portfolio, opportunity, partner, branch, and comparison workflows in Thai and English.
+- Added E2E coverage for first-run language/theme behavior and sidebar collapse persistence.

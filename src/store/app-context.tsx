@@ -22,7 +22,7 @@ interface AppState {
 const Context = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>("th");
   const [role, setRoleState] = useState<DemoRole>("BUSINESS_DEVELOPMENT");
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [failureMode, setFailureMode] = useState<FailureMode>("NONE");
@@ -36,6 +36,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   const setLanguage = (value: Language) => {
     setLanguageState(value);

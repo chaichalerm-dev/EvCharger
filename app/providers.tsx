@@ -10,5 +10,5 @@ export function Providers({ children }: { children: React.ReactNode }) {
     document.body.removeAttribute("inert");
     document.body.dataset.interactive = "true";
   }, []);
-  return <ThemeProvider attribute="class" defaultTheme="system" enableSystem><QueryClientProvider client={queryClient}><AppProvider>{children}</AppProvider></QueryClientProvider></ThemeProvider>;
+  return <ThemeProvider attribute="class" defaultTheme="light" enableSystem><QueryClientProvider client={queryClient}><AppProvider>{children}</AppProvider></QueryClientProvider></ThemeProvider>;
 }

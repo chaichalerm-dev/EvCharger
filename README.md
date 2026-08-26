@@ -11,7 +11,9 @@ The runtime is now **Real Provider Mode**: it does not insert bundled market fix
 - Deterministic score and explainable recommendation calculated from available provider data; missing survey facts remain `Unknown` or `Requires Site Survey`.
 - Runtime API Connection settings for provider endpoint and token replacement without editing code.
 - Business API client for `GET /sites`, `/partners`, `/branches`, and `/opportunities` using an optional temporary bearer token.
-- Partner submission prototype, Thai/English foundation, light/dark/system themes, responsive UI, and automated tests.
+- Thai/English interface using bundled Noto Sans Thai/Noto Sans fonts, with Thai and light mode as first-run defaults.
+- Collapsible desktop sidebar with a persistent device-local preference, mobile navigation drawer, light/dark/system themes, responsive UI, and automated tests.
+- Partner submission prototype with clearly marked local-only persistence.
 
 ## API-token safety
 

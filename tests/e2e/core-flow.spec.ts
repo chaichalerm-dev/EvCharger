@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test("searches and recalculates an arbitrary location", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
   await page.route("**/nominatim.openstreetmap.org/search**", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify([{ display_name: "Asok, Bangkok, Thailand", lat: "13.7366", lon: "100.5600" }])
@@ -19,15 +20,21 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
 });
 
 test("language and theme controls remain interactive", async ({ page }) => {
-  await page.goto("/settings");
-  await page.getByRole("combobox").first().selectOption("dark");
-  await expect(page.locator("html")).toHaveClass(/dark/);
-  await page.getByRole("combobox").nth(1).selectOption("th");
   await page.goto("/");
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await expect(page.locator("html")).toHaveAttribute("lang", "th");
   await expect(page.getByRole("heading", { name: "แดชบอร์ดผู้บริหาร" })).toBeVisible();
+  await page.goto("/settings");
+  await page.getByRole("combobox", { name: "โหมดสี" }).selectOption("dark");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.getByRole("combobox", { name: "ภาษา" }).selectOption("en");
+  await page.goto("/");
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("heading", { name: "Executive Dashboard" })).toBeVisible();
 });
 
 test("3D and public location context controls remain usable", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
   await page.route("**/overpass-api.de/api/interpreter", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify({ elements: [{ type: "node", id: 7, lat: 13.668, lon: 100.636, tags: { amenity: "charging_station", name: "Education test charger" } }] })
@@ -60,10 +67,27 @@ test("3D and public location context controls remain usable", async ({ page }) =
 test("saved dark theme hydrates without breaking controls", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
-  await page.addInitScript(() => localStorage.setItem("theme", "dark"));
+  await page.addInitScript(() => {
+    localStorage.setItem("theme", "dark");
+    localStorage.setItem("evatlas.language", "en");
+  });
   await page.goto("/");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: "Switch language" }).click();
   await expect(page.getByRole("heading", { name: "แดชบอร์ดผู้บริหาร" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("lang", "th");
   expect(pageErrors.filter((message) => message.includes("Hydration failed"))).toEqual([]);
+});
+
+test("desktop sidebar can collapse, persist and expand", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name === "mobile", "Mobile uses the off-canvas navigation drawer");
+  await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
+  await page.goto("/");
+  await page.getByRole("button", { name: "Collapse sidebar" }).click();
+  await expect(page.locator(".app-shell")).toHaveClass(/sidebar-collapsed/);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("evatlas.sidebarCollapsed"))).toBe("true");
+  await page.reload();
+  await expect(page.locator(".app-shell")).toHaveClass(/sidebar-collapsed/);
+  await page.getByRole("button", { name: "Expand sidebar" }).click();
+  await expect(page.locator(".app-shell")).not.toHaveClass(/sidebar-collapsed/);
 });
