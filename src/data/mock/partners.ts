@@ -1,0 +1,14 @@
+import type { Branch,Partner } from "@/src/domain/models";
+export const MOCK_PARTNERS:Partner[]=[
+ {id:"partner-green",name:"Green Retail Group",type:"STRATEGIC_PARTNER",contact:"Demo business contact",businessType:"Shopping & retail",contractStatus:"Framework review",branchCount:8,status:"ACTIVE"},
+ {id:"partner-siam",name:"Siam Hospitality",type:"HOST",contact:"Demo portfolio contact",businessType:"Hotel",contractStatus:"Pilot agreement",branchCount:5,status:"ACTIVE"},
+ {id:"partner-eastern",name:"Eastern Fuel Network",type:"COMMERCIAL_PARTNER",contact:"Demo network contact",businessType:"Gas station",contractStatus:"Due diligence",branchCount:14,status:"PROSPECT"},
+ {id:"partner-metro",name:"Metro Parking Co.",type:"LANDOWNER",contact:"Demo asset contact",businessType:"Parking",contractStatus:"Expression of interest",branchCount:11,status:"PROSPECT"}
+];
+export const MOCK_BRANCHES:Branch[]=[
+ {id:"branch-green-rama9",partnerId:"partner-green",name:"Green Retail Rama 9",address:"Rama IX Road",province:"Bangkok",district:"Huai Khwang",latitude:13.747,longitude:100.558,availableAreaSqm:640,parkingSpaces:28,businessType:"Retail",existingEvChargers:false,electricalStatus:"Requires Site Survey",siteScore:84,recommendedStation:"EV_HUB",installationStatus:"QUALIFIED"},
+ {id:"branch-green-bangna",partnerId:"partner-green",name:"Green Retail Bang Na",address:"Bang Na-Trat Road",province:"Bangkok",district:"Bang Na",latitude:13.675,longitude:100.642,availableAreaSqm:910,parkingSpaces:37,businessType:"Retail",existingEvChargers:true,electricalStatus:"Preliminary review",siteScore:89,recommendedStation:"FULL_EV_STATION",installationStatus:"SITE_SURVEY"},
+ {id:"branch-siam-sriracha",partnerId:"partner-siam",name:"Siam Hotel Sriracha",address:"Sukhumvit Road",province:"Chonburi",district:"Si Racha",latitude:13.17,longitude:100.93,availableAreaSqm:420,parkingSpaces:44,businessType:"Hotel",existingEvChargers:false,electricalStatus:"Unknown",siteScore:78,recommendedStation:"EV_HUB",installationStatus:"UNDER_ANALYSIS"},
+ {id:"branch-eastern-rayong",partnerId:"partner-eastern",name:"Eastern Fuel Rayong 04",address:"Highway 36",province:"Rayong",district:"Mueang Rayong",latitude:12.71,longitude:101.25,availableAreaSqm:730,parkingSpaces:25,businessType:"Gas station",existingEvChargers:false,electricalStatus:"Requires Site Survey",siteScore:82,recommendedStation:"EV_HUB",installationStatus:"SUBMITTED"},
+ {id:"branch-metro-nbi",partnerId:"partner-metro",name:"Metro Parking Nonthaburi",address:"Rattanathibet Road",province:"Nonthaburi",district:"Mueang Nonthaburi",latitude:13.86,longitude:100.49,availableAreaSqm:320,parkingSpaces:86,businessType:"Parking",existingEvChargers:false,electricalStatus:"Unknown",siteScore:66,recommendedStation:"CHARGING_POINT",installationStatus:"LEAD"}
+];

@@ -1,0 +1,2 @@
+export interface PartnerSubmission { id:string;location:string;address:string;siteArea:number;businessType:string;parking:number;facilities:string;notes:string;contact:string;createdAt:string;status:"SUBMITTED"; }
+export interface SubmissionRepository { list():Promise<PartnerSubmission[]>; create(input:Omit<PartnerSubmission,"id"|"createdAt"|"status">):Promise<PartnerSubmission>; remove(id:string):Promise<void>; }

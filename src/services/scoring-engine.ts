@@ -1,0 +1,2 @@
+import { SCORE_WEIGHTS } from "@/src/config/business"; import type { ScoreFactors,SiteScore } from "@/src/domain/models";
+export function calculateSiteScore(factors:ScoreFactors):SiteScore{const overall=Math.round(Object.entries(SCORE_WEIGHTS).reduce((sum,[key,weight])=>sum+factors[key as keyof ScoreFactors]*weight,0));return{overall,factors,calculatedAt:new Date().toISOString(),configurationVersion:"demo-v1.0"}}
