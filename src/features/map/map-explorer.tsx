@@ -18,6 +18,7 @@ import { recommendSite } from "@/src/services/recommendation-engine";
 import { calculateSiteScore } from "@/src/services/scoring-engine";
 import { useApp } from "@/src/store/app-context";
 import { registerMapMarkerImages } from "./map-marker-icons";
+import { ScoreBar } from "@/src/components/ui/score-bar";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
 
@@ -490,11 +491,11 @@ export function MapExplorer() {
         </button>
         {!publicContext && <p className="analyze-helper">{language === "th" ? "ขั้นตอนถัดไป: กดปุ่มนี้เพื่อดึงข้อมูลและคำนวณคะแนน" : "Next: press this button to load data and calculate the score"}</p>}
 
-        <details className="layer-details">
-          <summary><Layers3 />{language === "th" ? "ชั้นข้อมูลบนแผนที่" : "Map layers"}<span>{Object.values(layerState).filter(Boolean).length}</span></summary>
+        <section className="layer-panel" aria-labelledby="map-layers-title">
+          <div className="layer-panel-heading"><strong id="map-layers-title"><Layers3 />{language === "th" ? "ชั้นข้อมูลบนแผนที่" : "Map layers"}</strong><span>{Object.values(layerState).filter(Boolean).length}/{LAYERS.length}</span></div>
           <p className="layer-hint">{language === "th" ? "ไอคอนเดียวกับที่แสดงบนแผนที่" : "Icons match the symbols shown on the map"}</p>
-          {LAYERS.map((layer) => { const LayerIcon = layer.icon; return <label className="layer-row" key={layer.id}><input type="checkbox" checked={layerState[layer.id]} onChange={() => setLayerState((current) => ({ ...current, [layer.id]: !current[layer.id] }))} /><span className="layer-icon" style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></span><span>{language === "th" ? layer.labelTh : layer.label}</span></label>; })}
-        </details>
+          <div className="layer-list">{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; return <label className={`layer-row ${enabled ? "enabled" : "disabled"}`} key={layer.id}><input type="checkbox" checked={enabled} onChange={() => setLayerState((current) => ({ ...current, [layer.id]: !current[layer.id] }))} /><span className="layer-icon" style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></span><span className="layer-name">{language === "th" ? layer.labelTh : layer.label}</span><small>{enabled ? (language === "th" ? "แสดง" : "On") : (language === "th" ? "ซ่อน" : "Off")}</small></label>; })}</div>
+        </section>
       </aside>
 
       <div className="map-canvas-wrap">
@@ -509,7 +510,7 @@ export function MapExplorer() {
         <div className="map-country-badge"><MapPin />{language === "th" ? "ขอบเขตประเทศไทย" : "Thailand coverage"}</div>
         <div className="map-symbol-legend" aria-label={language === "th" ? "คำอธิบายสัญลักษณ์บนแผนที่" : "Map symbol legend"}>
           <strong><Layers3 />{language === "th" ? "สัญลักษณ์" : "Symbols"}</strong>
-          <div>{LAYERS.filter((layer) => layerState[layer.id]).map((layer) => { const LayerIcon = layer.icon; return <span className="map-symbol-item" key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>
+          <div>{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; return <span className={`map-symbol-item ${enabled ? "enabled" : "disabled"}`} key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>
         </div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
         <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + Mapterhorn terrain + OpenFreeMap buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
@@ -566,7 +567,7 @@ export function MapExplorer() {
           <div><dt>{language === "th" ? "ระบบไฟฟ้า" : "Power"}</dt><dd>{analysis.site.powerAvailability ?? t.survey}</dd></div>
         </dl>
 
-        <div className="factor-mini result-factors">{Object.entries(analysis.site.factors).map(([key, value]) => <div key={key}><span>{key.replaceAll(/([A-Z])/g, " $1")}</span><i><b style={{ width: `${value}%` }} /></i><strong>{value}</strong></div>)}</div>
+        <div className="factor-mini result-factors">{Object.entries(analysis.site.factors).map(([key, value]) => <ScoreBar compact key={key} label={key.replaceAll(/([A-Z])/g, " $1")} value={value} />)}</div>
 
         <div className="why-box"><Sparkles /><div><strong>{language === "th" ? "เหตุผลสำคัญ" : "Why this result"}</strong><ul>{recommendation.reasons.slice(0, 3).map((reason) => <li key={reason}>{reason}</li>)}</ul></div></div>
         {(recommendation.risks.length > 0 || recommendation.missingInformation.length > 0) && <div className="risk-box"><AlertTriangle /><div><strong>{language === "th" ? "สิ่งที่ต้องตรวจสอบต่อ" : "Check before deciding"}</strong><p>{[...recommendation.risks, ...recommendation.missingInformation].slice(0, 3).join(" · ")}</p></div></div>}

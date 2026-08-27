@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.5 — 2026-08-27
+
+- Kept the complete map-layer control and every category icon visible at all times; disabled layers now remain identifiable with a clear off state.
+- Replaced plain factor fills with accessible, color-banded score bars and visible 60/75 reference markers.
+
 ## 0.6.4 — 2026-08-27
 
 - Added global Mapterhorn terrain mesh and hillshade to 3D mode, independent of building coverage.
