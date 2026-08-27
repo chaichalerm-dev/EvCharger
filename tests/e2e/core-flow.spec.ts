@@ -110,6 +110,18 @@ test("shows only one sidebar control for each responsive layout", async ({ page 
   }
 });
 
+test("sidebar highlights only the current page", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
+  await page.goto("/");
+  await expect(page.locator(".nav-link.active")).toHaveCount(1);
+  await expect(page.locator('.nav-link[href="/"]')).toHaveAttribute("aria-current", "page");
+  await expect(page.locator('.nav-link[href="/map"]')).not.toHaveClass(/active/);
+
+  await page.goto("/map");
+  await expect(page.locator(".nav-link.active")).toHaveCount(1);
+  await expect(page.locator('.nav-link[href="/map"]')).toHaveAttribute("aria-current", "page");
+});
+
 test("guides a first-time user from home to the next map action", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { name: /มีพื้นที่ในใจ/ })).toBeVisible();

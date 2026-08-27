@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1 — 2026-08-27
+
+- Removed the permanent visual emphasis from Map Explorer in the sidebar.
+- Sidebar active styling now follows the current route consistently and exposes `aria-current="page"` for accessibility.
+
 ## 0.1.0 — 2026-08-26
 
 - Created frontend-first EV expansion intelligence prototype.
