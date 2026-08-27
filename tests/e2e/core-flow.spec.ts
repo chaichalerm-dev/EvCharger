@@ -56,10 +56,16 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".layer-icon svg")).toHaveCount(7);
   await expect(page.locator(".layer-panel")).toBeVisible();
   await expect(page.locator(".layer-row")).toHaveCount(7);
+  const legendToggle = page.getByRole("button", { name: /Symbols/ });
+  await expect(legendToggle).toHaveAttribute("aria-expanded", "false");
+  await legendToggle.click();
+  await expect(legendToggle).toHaveAttribute("aria-expanded", "true");
   await expect(page.locator(".map-symbol-legend .map-symbol-item")).toHaveCount(7);
   await expect(page.locator(".map-symbol-legend")).toContainText("EV Stations");
   await expect(page.locator(".map-symbol-legend")).toContainText("Gas Stations");
   await expect(page.locator(".map-symbol-legend .map-symbol-item.disabled")).toHaveCount(2);
+  await legendToggle.click();
+  await expect(page.locator(".map-symbol-legend .map-symbol-item")).toHaveCount(0);
   const threeD = page.locator(".map-3d-btn");
   await expect(threeD).toHaveText("3D", { timeout: 15000 });
   await expect(threeD).toHaveAttribute("title", /Mapterhorn terrain/);

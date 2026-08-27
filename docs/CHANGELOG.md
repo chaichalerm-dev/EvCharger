@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.6 — 2026-08-27
+
+- Replaced the large always-open map legend with a compact toggle that is collapsed by default and remains accessible on desktop and mobile.
+- Kept the full layer list permanently visible in the analysis controls while preserving all legend categories when the compact panel is opened.
+
 ## 0.6.5 — 2026-08-27
 
 - Kept the complete map-layer control and every category icon visible at all times; disabled layers now remain identifiable with a clear off state.

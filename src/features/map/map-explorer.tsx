@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
-  AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, CircleDot, Database, Focus, Fuel,
+  AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, ChevronDown, CircleDot, Database, Focus, Fuel,
   Gauge, Handshake, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, RefreshCw, Search, Sparkles, Target, Thermometer, Users, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
@@ -181,6 +181,7 @@ export function MapExplorer() {
   const [threeDStatus, setThreeDStatus] = useState<"IDLE" | "LOADING" | "READY" | "TERRAIN_ONLY" | "UNAVAILABLE">("IDLE");
   const [publicContext, setPublicContext] = useState<PublicLocationContext | null>(null);
   const [publicLoading, setPublicLoading] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(false);
   const [layerState, setLayerState] = useState<Record<string, boolean>>(() => Object.fromEntries(LAYERS.map((layer) => [layer.id, layer.default])));
   const { language } = useApp();
   const languageRef = useRef(language);
@@ -508,9 +509,11 @@ export function MapExplorer() {
         </div>
         <div className="map-instruction"><MousePointer2 />{language === "th" ? "คลิกจุดที่สนใจบนแผนที่" : "Click a point to analyze it"}</div>
         <div className="map-country-badge"><MapPin />{language === "th" ? "ขอบเขตประเทศไทย" : "Thailand coverage"}</div>
-        <div className="map-symbol-legend" aria-label={language === "th" ? "คำอธิบายสัญลักษณ์บนแผนที่" : "Map symbol legend"}>
-          <strong><Layers3 />{language === "th" ? "สัญลักษณ์" : "Symbols"}</strong>
-          <div>{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; return <span className={`map-symbol-item ${enabled ? "enabled" : "disabled"}`} key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>
+        <div className={`map-symbol-legend ${legendOpen ? "open" : "collapsed"}`} aria-label={language === "th" ? "คำอธิบายสัญลักษณ์บนแผนที่" : "Map symbol legend"}>
+          <button className="legend-toggle" type="button" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen}>
+            <Layers3 /><span>{language === "th" ? "สัญลักษณ์" : "Symbols"}</span><small>{Object.values(layerState).filter(Boolean).length}/{LAYERS.length}</small><ChevronDown aria-hidden="true" />
+          </button>
+          {legendOpen && <div className="legend-items">{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; return <span className={`map-symbol-item ${enabled ? "enabled" : "disabled"}`} key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>}
         </div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
         <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + Mapterhorn terrain + OpenFreeMap buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
