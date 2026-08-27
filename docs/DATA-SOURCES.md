@@ -11,6 +11,7 @@ The prototype uses public services only after an explicit user action. Endpoints
 | Provider | Prototype use | Important constraint |
 | --- | --- | --- |
 | OpenStreetMap raster tiles | Basemap | Attribution required; public tile service has no SLA |
+| Mapterhorn terrain tiles | Global 3D bare-earth terrain and hillshade | Thailand uses global approximately 30 m terrain; public service has no SLA and requires source attribution review |
 | OpenFreeMap vector tiles | Optional 3D buildings rendered by MapLibre | External service; 3D coverage depends on OSM building data |
 | Nominatim | User-triggered place search | No autocomplete; public instance limit is 1 request/second; results cached in memory |
 | Overpass API | On-demand nearby EV, fuel, and POI snapshot | Shared public capacity; request radius is capped and partial failure is supported |

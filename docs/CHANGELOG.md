@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4 — 2026-08-27
+
+- Added global Mapterhorn terrain mesh and hillshade to 3D mode, independent of building coverage.
+- 3D now centers on the selected location, uses a 65-degree camera, antialiasing, and building extrusions from zoom 14.
+- Added honest terrain-only, terrain-plus-buildings, loading, and unavailable states.
+- Added Mapterhorn as a replaceable key-free provider in API Settings.
+
 ## 0.6.3 — 2026-08-27
 
 - Added configurable zoom-dependent icon scaling for all MapLibre symbols.

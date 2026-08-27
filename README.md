@@ -6,7 +6,7 @@ The runtime is now **Real Provider Mode**: it does not insert bundled market fix
 
 ## What works today
 
-- Thailand-constrained MapLibre map, place search, click-to-select, 1/3/5/10 km analysis radius, category-specific Lucide map symbols, compact clustering, an always-visible legend, and optional 3D buildings.
+- Thailand-constrained MapLibre map, place search, click-to-select, 1/3/5/10 km analysis radius, category-specific Lucide map symbols, compact clustering, an always-visible legend, global Mapterhorn 3D terrain, and OpenFreeMap building extrusions where OpenStreetMap footprints are available.
 - On-demand OpenStreetMap/Nominatim/Overpass, Open-Meteo weather/elevation/flood context, WorldPop population, and optional TomTom traffic flow.
 - Deterministic score and explainable recommendation calculated from available provider data; missing survey facts remain `Unknown` or `Requires Site Survey`.
 - Runtime API Connection settings for provider endpoint and token replacement without editing code.

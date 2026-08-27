@@ -14,4 +14,10 @@ describe("runtime API connections", () => {
   it("rejects unsafe non-local HTTP endpoints", () => {
     expect(() => updateApiConnection("tomtom-traffic", { endpoint: "http://example.com/traffic" })).toThrow();
   });
+
+  it("provides replaceable key-free 3D terrain and building providers", () => {
+    expect(getApiConnection("mapterhorn-terrain")).toMatchObject({ enabled: true, token: "" });
+    expect(getApiConnection("mapterhorn-terrain").endpoint).toContain("mapterhorn.com");
+    expect(getApiConnection("openfreemap").endpoint).toContain("openfreemap.org");
+  });
 });

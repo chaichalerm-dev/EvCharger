@@ -100,34 +100,65 @@ function zoomScaledValue(value: { overview: number; normal: number; detail: numb
   ];
 }
 
+function firstMapOverlayLayer(map: MapLibreMap) {
+  return ["opportunity-clusters", "entity-clusters", "analysis-fill", "selected-point-halo"]
+    .find((layerId) => map.getLayer(layerId));
+}
+
+function ensure3DTerrain(map: MapLibreMap) {
+  const connection = getApiConnection("mapterhorn-terrain");
+  if (!connection.enabled || !connection.endpoint) return false;
+  if (!map.getSource("mapterhorn-terrain")) {
+    map.addSource("mapterhorn-terrain", { type: "raster-dem", url: connection.endpoint, tileSize: 512 });
+  }
+  const firstOverlayLayer = firstMapOverlayLayer(map);
+  if (!map.getLayer("terrain-hillshade")) {
+    map.addLayer({
+      id: "terrain-hillshade",
+      type: "hillshade",
+      source: "mapterhorn-terrain",
+      paint: {
+        "hillshade-exaggeration": 0.28,
+        "hillshade-shadow-color": "#29443a",
+        "hillshade-highlight-color": "#f4fbf7",
+        "hillshade-accent-color": "#78988c"
+      }
+    }, firstOverlayLayer);
+  } else {
+    map.setLayoutProperty("terrain-hillshade", "visibility", "visible");
+  }
+  map.setTerrain({ source: "mapterhorn-terrain", exaggeration: 1.15 });
+  return true;
+}
+
 function ensure3DBuildings(map: MapLibreMap) {
   const connection = getApiConnection("openfreemap");
-  if (!connection.enabled) throw new Error("OpenFreeMap is disabled");
+  if (!connection.enabled || !connection.endpoint) return false;
   if (!map.getSource("openfreemap-buildings")) {
     map.addSource("openfreemap-buildings", { type: "vector", url: connection.endpoint });
   }
-  const firstOverlayLayer = ["opportunity-clusters", "entity-clusters", "analysis-fill", "selected-point-halo"]
-    .find((layerId) => map.getLayer(layerId));
+  const firstOverlayLayer = firstMapOverlayLayer(map);
   if (!map.getLayer("3d-buildings")) {
     map.addLayer({
       id: "3d-buildings",
       type: "fill-extrusion",
       source: "openfreemap-buildings",
       "source-layer": "building",
-      minzoom: 15,
+      minzoom: 14,
       layout: { visibility: "none" },
       filter: ["!=", ["get", "hide_3d"], true],
       paint: {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 0], 0, "#d7dfdb", 80, "#7fb8a5", 200, "#4a8f78"],
-        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 15, 0, 16, ["coalesce", ["get", "render_height"], 8]],
-        "fill-extrusion-base": ["case", [">=", ["get", "zoom"], 16], ["coalesce", ["get", "render_min_height"], 0], 0],
-        "fill-extrusion-opacity": 0.9,
+        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 6], 0, "#b8d6ca", 40, "#4d9e82", 120, "#176c53"],
+        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.2, ["coalesce", ["get", "render_height"], 6]],
+        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
+        "fill-extrusion-opacity": 0.94,
         "fill-extrusion-vertical-gradient": true
       }
     }, firstOverlayLayer);
   } else if (firstOverlayLayer) {
     map.moveLayer("3d-buildings", firstOverlayLayer);
   }
+  return true;
 }
 
 export function MapExplorer() {
@@ -146,7 +177,7 @@ export function MapExplorer() {
   const [mapReady, setMapReady] = useState(false);
   const [is3D, setIs3D] = useState(false);
   const is3DRef = useRef(false);
-  const [threeDStatus, setThreeDStatus] = useState<"IDLE" | "LOADING" | "READY" | "NO_BUILDINGS" | "UNAVAILABLE">("IDLE");
+  const [threeDStatus, setThreeDStatus] = useState<"IDLE" | "LOADING" | "READY" | "TERRAIN_ONLY" | "UNAVAILABLE">("IDLE");
   const [publicContext, setPublicContext] = useState<PublicLocationContext | null>(null);
   const [publicLoading, setPublicLoading] = useState(false);
   const [layerState, setLayerState] = useState<Record<string, boolean>>(() => Object.fromEntries(LAYERS.map((layer) => [layer.id, layer.default])));
@@ -196,8 +227,8 @@ export function MapExplorer() {
     setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — เลือกรัศมี แล้วกดวิเคราะห์พื้นที่นี้" : "Location selected — choose a radius, then analyze this area");
     mapRef.current?.easeTo({
       center: [candidate.longitude, candidate.latitude],
-      zoom: is3DRef.current ? 16.2 : 13.5,
-      pitch: is3DRef.current ? 60 : 0,
+      zoom: is3DRef.current ? 16.5 : 13.5,
+      pitch: is3DRef.current ? 65 : 0,
       bearing: is3DRef.current ? -24 : 0,
       duration: 650
     });
@@ -229,18 +260,25 @@ export function MapExplorer() {
     }
     const applyMode = () => {
       if (!map.isStyleLoaded()) return false;
-      try {
-        if (next) ensure3DBuildings(map);
-      } catch (error) {
-        console.warn("Unable to enable the OpenFreeMap 3D building layer", error);
-        setThreeDStatus("UNAVAILABLE");
-        return false;
+      if (next) {
+        let terrainEnabled = false;
+        let buildingsEnabled = false;
+        try { terrainEnabled = ensure3DTerrain(map); } catch (error) { console.warn("Unable to enable Mapterhorn terrain", error); }
+        try { buildingsEnabled = ensure3DBuildings(map); } catch (error) { console.warn("Unable to enable OpenFreeMap buildings", error); }
+        if (!terrainEnabled && !buildingsEnabled) {
+          setThreeDStatus("UNAVAILABLE");
+          return false;
+        }
+      } else {
+        map.setTerrain(null);
+        if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
       }
       if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", next ? "visible" : "none");
       map.easeTo({
-        pitch: next ? 60 : 0,
+        center: [location.longitude, location.latitude],
+        pitch: next ? 65 : 0,
         bearing: next ? -24 : 0,
-        zoom: next ? Math.max(map.getZoom(), 16.2) : Math.min(map.getZoom(), 14),
+        zoom: next ? Math.max(map.getZoom(), 16.5) : Math.min(map.getZoom(), 14),
         duration: 700
       });
       setThreeDStatus(next ? "LOADING" : "IDLE");
@@ -284,6 +322,7 @@ export function MapExplorer() {
       maxZoom: THAILAND_MAP_VIEW.maxZoom,
       maxBounds: THAILAND_MAP_VIEW.bounds,
       renderWorldCopies: THAILAND_MAP_VIEW.renderWorldCopies,
+      maxPitch: 75,
       attributionControl: false,
       canvasContextAttributes: { antialias: true }
     });
@@ -300,23 +339,27 @@ export function MapExplorer() {
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
       const message = String(event.error?.message ?? "").toLowerCase();
-      if (message.includes("openfreemap")) setThreeDStatus("UNAVAILABLE");
-      else if (message.includes("tile")) setTileWarning(true);
+      if (message.includes("openfreemap")) setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+      else if (message.includes("mapterhorn")) {
+        const hasBuildings = map.getLayer("3d-buildings") && map.queryRenderedFeatures({ layers: ["3d-buildings"] }).length > 0;
+        setThreeDStatus(hasBuildings ? "READY" : "UNAVAILABLE");
+      } else if (message.includes("tile") && !is3DRef.current) setTileWarning(true);
     });
     map.on("idle", () => {
       if (map.getSource("osm") && map.isSourceLoaded("osm") && map.areTilesLoaded()) {
         setOnlineTilesReady(true);
         setTileWarning(false);
       }
-      if (is3DRef.current && map.getLayer("3d-buildings") && map.isSourceLoaded("openfreemap-buildings")) {
-        const featureCount = map.queryRenderedFeatures({ layers: ["3d-buildings"] }).length;
-        setThreeDStatus(featureCount > 0 ? "READY" : "NO_BUILDINGS");
+      if (is3DRef.current) {
+        const featureCount = map.getLayer("3d-buildings") ? map.queryRenderedFeatures({ layers: ["3d-buildings"] }).length : 0;
+        const terrainConfigured = Boolean(map.getTerrain()?.source);
+        setThreeDStatus(featureCount > 0 ? "READY" : terrainConfigured ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     });
     map.on("sourcedata", (event) => {
       if (event.sourceId === "openfreemap-buildings" && event.isSourceLoaded && map.getLayer("3d-buildings")) {
         const featureCount = map.queryRenderedFeatures({ layers: ["3d-buildings"] }).length;
-        setThreeDStatus(featureCount > 0 ? "READY" : "NO_BUILDINGS");
+        setThreeDStatus(featureCount > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     });
     map.on("load", () => {
@@ -469,9 +512,14 @@ export function MapExplorer() {
           <div>{LAYERS.filter((layer) => layerState[layer.id]).map((layer) => { const LayerIcon = layer.icon; return <span className="map-symbol-item" key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>
         </div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
-        <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + OpenFreeMap 3D buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
-        {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`}><Box />{threeDStatus === "READY" ? (language === "th" ? "อาคาร 3D พร้อมใช้งาน" : "3D buildings ready") : threeDStatus === "NO_BUILDINGS" ? (language === "th" ? "ไม่พบอาคาร 3D บริเวณนี้" : "No 3D buildings in view") : `OpenFreeMap 3D · ${threeDStatus}`}</div>}
-        <button className="map-float-btn" disabled={!mapReady} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? 16.2 : 13.5, pitch: is3D ? 60 : 0, bearing: is3D ? -24 : 0, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
+        <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + Mapterhorn terrain + OpenFreeMap buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
+        {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`} data-3d-status={threeDStatus}><Box />{
+          threeDStatus === "READY" ? (language === "th" ? "ภูมิประเทศและอาคาร 3D พร้อม" : "3D terrain and buildings ready")
+            : threeDStatus === "TERRAIN_ONLY" ? (language === "th" ? "ภูมิประเทศ 3D พร้อม · ไม่พบข้อมูลความสูงอาคารบริเวณนี้" : "3D terrain ready · no building-height data in this view")
+              : threeDStatus === "LOADING" ? (language === "th" ? "กำลังโหลดภูมิประเทศและอาคาร 3D…" : "Loading 3D terrain and buildings…")
+                : (language === "th" ? "ผู้ให้บริการข้อมูล 3D ไม่พร้อม" : "3D providers unavailable")
+        }</div>}
+        <button className="map-float-btn" disabled={!mapReady} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? 16.5 : 13.5, pitch: is3D ? 65 : 0, bearing: is3D ? -24 : 0, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
       </div>
 
       <aside className="map-panel site-panel result-panel">

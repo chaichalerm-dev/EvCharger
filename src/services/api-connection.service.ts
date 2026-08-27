@@ -3,6 +3,7 @@ import { z } from "zod";
 export type ApiProviderId =
   | "osm-tiles"
   | "openfreemap"
+  | "mapterhorn-terrain"
   | "nominatim"
   | "overpass"
   | "open-meteo-weather"
@@ -27,6 +28,7 @@ const endpointSchema = z.string().trim().url().max(500).refine((value) => {
 const defaults: Record<ApiProviderId, ApiConnection> = {
   "osm-tiles": { endpoint: "https://tile.openstreetmap.org/{z}/{x}/{y}.png", token: "", enabled: true, updatedAt: null },
   openfreemap: { endpoint: "https://tiles.openfreemap.org/planet", token: "", enabled: true, updatedAt: null },
+  "mapterhorn-terrain": { endpoint: "https://tiles.mapterhorn.com/tilejson.json", token: "", enabled: true, updatedAt: null },
   nominatim: { endpoint: "https://nominatim.openstreetmap.org/search", token: "", enabled: true, updatedAt: null },
   overpass: { endpoint: "https://overpass-api.de/api/interpreter", token: "", enabled: true, updatedAt: null },
   "open-meteo-weather": { endpoint: "https://api.open-meteo.com", token: "", enabled: true, updatedAt: null },

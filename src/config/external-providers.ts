@@ -40,6 +40,18 @@ export const EXTERNAL_PROVIDERS: ExternalProviderConfig[] = [
     ,runtimeId: "openfreemap", freeLimit: "Free public instance; no API key or SLA"
   },
   {
+    id: "mapterhorn-terrain",
+    name: "Mapterhorn Terrain",
+    capability: "Global 3D terrain elevation",
+    status: "CONNECTED",
+    keyRequired: false,
+    prototypeUse: "Terrain mesh and hillshade around the selected location",
+    productionNote: "Public open-data service; retain provider switching and review source attribution.",
+    docsUrl: "https://mapterhorn.com/data-access/",
+    runtimeId: "mapterhorn-terrain",
+    freeLimit: "Public global 30 m terrain tiles; no API key or SLA"
+  },
+  {
     id: "nominatim",
     name: "OSM Nominatim",
     capability: "Thailand place search",
