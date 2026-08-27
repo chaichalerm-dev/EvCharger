@@ -10,4 +10,6 @@ Building extrusion starts at zoom 14 and is always placed below analysis and mar
 
 The layer controls remain expanded so every available category and icon stays visible. The on-map legend is collapsed by default to preserve map space; users can open it to see every category, including disabled layers shown with a subdued off state.
 
+The redundant Thailand-coverage and click-instruction overlays are intentionally omitted from the map canvas. The 3D/2D and recenter actions use compact icon-only controls with accessible names and hover titles.
+
 The on-demand action queries Overpass, Open-Meteo, WorldPop, and optional TomTom. Each failure is isolated and shown without crashing the map. Provider endpoints/tokens are replaceable in Settings. Future work: authoritative parcel/flood/traffic contracts, heatmap source, terrain, persisted site-boundary editing, server-side credential proxying, provider health reporting, and tiling strategies for large datasets.

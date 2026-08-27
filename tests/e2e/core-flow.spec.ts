@@ -52,7 +52,8 @@ test("3D and public location context controls remain usable", async ({ page }) =
 
   await page.goto("/map");
   await expect(page.locator(".map-canvas")).toHaveAttribute("data-country", "TH");
-  await expect(page.locator(".map-country-badge")).toContainText("Thailand coverage");
+  await expect(page.locator(".map-country-badge")).toHaveCount(0);
+  await expect(page.locator(".map-instruction")).toHaveCount(0);
   await expect(page.locator(".layer-icon svg")).toHaveCount(7);
   await expect(page.locator(".layer-panel")).toBeVisible();
   await expect(page.locator(".layer-row")).toHaveCount(7);
@@ -67,10 +68,13 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await legendToggle.click();
   await expect(page.locator(".map-symbol-legend .map-symbol-item")).toHaveCount(0);
   const threeD = page.locator(".map-3d-btn");
-  await expect(threeD).toHaveText("3D", { timeout: 15000 });
-  await expect(threeD).toHaveAttribute("title", /Mapterhorn terrain/);
+  await expect(threeD).toHaveAttribute("aria-label", "Enable 3D map", { timeout: 15000 });
+  await expect(threeD).toHaveText("");
+  await expect(page.locator(".map-center-btn")).toHaveAttribute("aria-label", "Center selected point");
+  await expect(page.locator(".map-center-btn")).toHaveText("");
   await threeD.click();
   await expect(threeD).toHaveAttribute("aria-pressed", "true");
+  await expect(threeD).toHaveAttribute("aria-label", "Switch to 2D map");
   await expect(page.locator(".map-3d-status")).toBeVisible();
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", /LOADING|READY|TERRAIN_ONLY|UNAVAILABLE/);
   await page.getByRole("button", { name: "Analyze this area" }).click();

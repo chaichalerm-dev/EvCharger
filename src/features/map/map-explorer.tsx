@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, ChevronDown, CircleDot, Database, Focus, Fuel,
-  Gauge, Handshake, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, RefreshCw, Search, Sparkles, Target, Thermometer, Users, Waves, Wind, Zap
+  Gauge, Handshake, Layers3, LocateFixed, Map as MapIcon, MapPin, Mountain, RefreshCw, Search, Sparkles, Target, Thermometer, Users, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
 import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
@@ -507,8 +507,6 @@ export function MapExplorer() {
           <i className="dom-selected"><span /></i>
           {visualEntities.map((entity) => { const EntityIcon = ENTITY_ICON_BY_KIND[entity.kind]; return <span key={entity.id} title={entity.name} className={`dom-entity entity-${entity.kind.toLowerCase()}`} style={{ left: `${entity.left}%`, top: `${entity.top}%` }}><EntityIcon /></span>; })}
         </div>
-        <div className="map-instruction"><MousePointer2 />{language === "th" ? "คลิกจุดที่สนใจบนแผนที่" : "Click a point to analyze it"}</div>
-        <div className="map-country-badge"><MapPin />{language === "th" ? "ขอบเขตประเทศไทย" : "Thailand coverage"}</div>
         <div className={`map-symbol-legend ${legendOpen ? "open" : "collapsed"}`} aria-label={language === "th" ? "คำอธิบายสัญลักษณ์บนแผนที่" : "Map symbol legend"}>
           <button className="legend-toggle" type="button" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen}>
             <Layers3 /><span>{language === "th" ? "สัญลักษณ์" : "Symbols"}</span><small>{Object.values(layerState).filter(Boolean).length}/{LAYERS.length}</small><ChevronDown aria-hidden="true" />
@@ -516,14 +514,14 @@ export function MapExplorer() {
           {legendOpen && <div className="legend-items">{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; return <span className={`map-symbol-item ${enabled ? "enabled" : "disabled"}`} key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>}
         </div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
-        <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + Mapterhorn terrain + OpenFreeMap buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
+        <button className={`map-float-btn map-icon-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} aria-label={language === "th" ? (is3D ? "เปลี่ยนเป็นแผนที่ 2D" : "เปิดแผนที่ 3D") : (is3D ? "Switch to 2D map" : "Enable 3D map")} title={language === "th" ? (is3D ? "เปลี่ยนเป็นแผนที่ 2D" : "เปิดแผนที่ 3D") : (is3D ? "Switch to 2D map" : "Enable 3D map")}>{is3D ? <MapIcon /> : <Box />}</button>
         {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`} data-3d-status={threeDStatus}><Box />{
           threeDStatus === "READY" ? (language === "th" ? "ภูมิประเทศและอาคาร 3D พร้อม" : "3D terrain and buildings ready")
             : threeDStatus === "TERRAIN_ONLY" ? (language === "th" ? "ภูมิประเทศ 3D พร้อม · ไม่พบข้อมูลความสูงอาคารบริเวณนี้" : "3D terrain ready · no building-height data in this view")
               : threeDStatus === "LOADING" ? (language === "th" ? "กำลังโหลดภูมิประเทศและอาคาร 3D…" : "Loading 3D terrain and buildings…")
                 : (language === "th" ? "ผู้ให้บริการข้อมูล 3D ไม่พร้อม" : "3D providers unavailable")
         }</div>}
-        <button className="map-float-btn" disabled={!mapReady} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? 16.5 : 13.5, pitch: is3D ? 65 : 0, bearing: is3D ? -24 : 0, duration: 500 })}><Focus />{language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"}</button>
+        <button className="map-float-btn map-icon-btn map-center-btn" disabled={!mapReady} aria-label={language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"} title={language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? 16.5 : 13.5, pitch: is3D ? 65 : 0, bearing: is3D ? -24 : 0, duration: 500 })}><Focus /></button>
       </div>
 
       <aside className="map-panel site-panel result-panel">

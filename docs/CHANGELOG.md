@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.7 — 2026-08-27
+
+- Removed the Thailand-coverage badge and click-the-map instruction overlay to preserve usable map space.
+- Reduced the 3D/2D and recenter controls to accessible icon-only buttons on desktop and mobile.
+
 ## 0.6.6 — 2026-08-27
 
 - Replaced the large always-open map legend with a compact toggle that is collapsed by default and remains accessible on desktop and mobile.
