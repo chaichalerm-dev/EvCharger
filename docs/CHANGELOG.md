@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.3 — 2026-08-27
+
+- Added configurable zoom-dependent icon scaling for all MapLibre symbols.
+- Icons, selected-point badges, clusters, and cluster counts now shrink at Thailand/province zoom levels to avoid covering the map.
+
 ## 0.6.2 — 2026-08-27
 
 - Replaced ambiguous colored point markers with fixed-size Lucide category symbols.

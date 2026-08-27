@@ -12,8 +12,10 @@ describe("Thailand prototype map configuration", () => {
   it("keeps map markers compact and viewport-scaled", () => {
     expect(MAP_MARKER_STYLE.pitchAlignment).toBe("viewport");
     expect(MAP_MARKER_STYLE.pitchScale).toBe("viewport");
-    expect(MAP_MARKER_STYLE.opportunityClusterRadius.overview).toBeLessThan(MAP_MARKER_STYLE.opportunityClusterRadius.detail);
-    expect(MAP_MARKER_STYLE.entityPointRadius.overview).toBeLessThan(MAP_MARKER_STYLE.entityPointRadius.normal);
-    expect(MAP_MARKER_STYLE.entityPointRadius.detail).toBeLessThan(MAP_MARKER_STYLE.opportunityPointRadius.detail);
+    expect(MAP_MARKER_STYLE.entityIconScale.overview).toBeLessThan(MAP_MARKER_STYLE.entityIconScale.normal);
+    expect(MAP_MARKER_STYLE.entityIconScale.normal).toBeLessThan(MAP_MARKER_STYLE.entityIconScale.detail);
+    expect(MAP_MARKER_STYLE.entityIconScale.overview).toBeLessThan(0.4);
+    expect(MAP_MARKER_STYLE.clusterIconScale.overview).toBeLessThan(MAP_MARKER_STYLE.clusterIconScale.detail);
+    expect(MAP_MARKER_STYLE.selectedIconScale.overview).toBeLessThan(MAP_MARKER_STYLE.selectedIconScale.detail);
   });
 });
