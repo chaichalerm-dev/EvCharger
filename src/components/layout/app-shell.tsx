@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BarChart3, Building2, ChevronDown, ClipboardList, Compass, Database, GitCompareArrows, Globe2, LayoutDashboard, Map, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck, Sun, Users, Waypoints, X, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, ChevronDown, ClipboardList, Compass, Database, GitCompareArrows, Globe2, LayoutDashboard, Map, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck, Sun, Users, Waypoints, X, Zap } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApp } from "@/src/store/app-context";
 import { translate, type TranslationKey } from "@/src/lib/i18n";
 
-const nav: { section: TranslationKey; items: { href: string; label: TranslationKey; icon: typeof LayoutDashboard }[] }[] = [
-  { section: "overview", items: [{ href: "/", label: "dashboard", icon: LayoutDashboard }, { href: "/map", label: "mapExplorer", icon: Map }, { href: "/expansion", label: "expansion", icon: BarChart3 }] },
+const nav: { section: TranslationKey; items: { href: string; label: TranslationKey; icon: typeof LayoutDashboard; primary?: boolean }[] }[] = [
+  { section: "overview", items: [{ href: "/", label: "dashboard", icon: LayoutDashboard }, { href: "/map", label: "mapExplorer", icon: Map, primary: true }, { href: "/expansion", label: "expansion", icon: BarChart3 }] },
   { section: "intelligence", items: [{ href: "/sites", label: "siteOpportunities", icon: Compass }, { href: "/compare", label: "compareSites", icon: GitCompareArrows }, { href: "/analysis", label: "analysis", icon: Waypoints }] },
   { section: "management", items: [{ href: "/partners", label: "partners", icon: Users }, { href: "/branches", label: "branches", icon: Building2 }, { href: "/opportunities", label: "pipeline", icon: ClipboardList }] },
   { section: "system", items: [{ href: "/settings", label: "settings", icon: Settings }, { href: "/demo", label: "prototypeControls", icon: Database }] },
@@ -39,14 +39,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
     <aside id="primary-sidebar" className={`sidebar ${menuOpen ? "mobile-open" : ""}`}>
       <div className="brand"><div className="brand-mark"><Zap size={21} /></div><div className="brand-copy"><div className="brand-title">EV Atlas</div><div className="brand-sub">Thailand Intelligence</div></div></div>
-      <nav aria-label={t("primaryNavigation")}>{nav.map(group => <div key={group.section}><div className="nav-section">{t(group.section)}</div>{group.items.map(item => { const Icon = item.icon; const active = path === item.href || (item.href !== "/" && path.startsWith(item.href)); const label = t(item.label); return <Link key={item.href} href={item.href} className={`nav-link ${active ? "active" : ""}`} title={sidebarCollapsed ? label : undefined} aria-label={label} onClick={() => setMenuOpen(false)}><Icon /><span>{label}</span></Link>; })}</div>)}</nav>
+      <nav aria-label={t("primaryNavigation")}>{nav.map(group => <div key={group.section}><div className="nav-section">{t(group.section)}</div>{group.items.map(item => { const Icon = item.icon; const active = path === item.href || (item.href !== "/" && path.startsWith(item.href)); const label = t(item.label); return <Link key={item.href} href={item.href} className={`nav-link ${item.primary ? "nav-primary" : ""} ${active ? "active" : ""}`} title={sidebarCollapsed ? label : undefined} aria-label={label} onClick={() => setMenuOpen(false)}><Icon /><span>{label}</span>{item.primary && !sidebarCollapsed && <ArrowRight className="nav-arrow" />}</Link>; })}</div>)}</nav>
       <div className="sidebar-foot"><strong>{t("realProviderMode")}</strong><p>{t("providerModeDescription")}</p></div>
     </aside>
     <div className="main-column">
       <header className="topbar">
         <button className="icon-btn sidebar-collapse-btn" disabled={!interactive} onClick={toggleSidebar} aria-label={t(sidebarCollapsed ? "expandSidebar" : "collapseSidebar")} title={t(sidebarCollapsed ? "expandSidebar" : "collapseSidebar")}>{sidebarCollapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</button>
         <button className="icon-btn mobile-menu" disabled={!interactive} onClick={() => setMenuOpen(value => !value)} aria-controls="primary-sidebar" aria-expanded={menuOpen} aria-label={t(menuOpen ? "closeNavigation" : "openNavigation")}>{menuOpen ? <X /> : <Menu />}</button>
-        <div className="global-search"><Search /><input aria-label={t("search")} placeholder={t("search")} /><span className="search-key">⌘ K</span></div>
+        <Link href="/map" className="topbar-search-link" aria-label={language === "th" ? "ค้นหาและวิเคราะห์พื้นที่" : "Search and analyze a location"}><Search /><span>{language === "th" ? "ค้นหาพื้นที่สำหรับสถานีชาร์จ" : "Find a location for an EV station"}</span><ArrowRight /></Link>
         <div className="top-actions">
           <button className="icon-btn" disabled={!interactive} onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} aria-label={t("toggleTheme")}>{interactive && resolvedTheme === "dark" ? <Sun /> : <Moon />}</button>
           <button className="icon-btn" disabled={!interactive} onClick={() => setLanguage(language === "en" ? "th" : "en")} aria-label={t("switchLanguage")}><Globe2 /></button>

@@ -48,3 +48,13 @@
 - Added E2E coverage for first-run language/theme behavior and sidebar collapse persistence.
 - Fixed generic button styles overriding responsive visibility, which had exposed desktop, mobile, and close controls together.
 - Simplified navigation to one contextual control: collapse/expand on desktop and menu/close on mobile, with improved top-bar and drawer alignment.
+
+## 0.6.0 — 2026-08-27
+
+- Rebuilt the first screen around one clear “start location search” action instead of empty portfolio metrics.
+- Added a plain-language three-step onboarding flow and a preview of the decision outputs users will receive.
+- Replaced the non-functional header search field with a working shortcut to Map Explorer.
+- Added a persistent map journey showing select location → set analysis area → review recommendation.
+- Moved site area into analysis controls and promoted one unambiguous Analyze this area action.
+- Simplified the pending result state and moved provider/API detail behind business-friendly labels.
+- Added responsive first-time workflow coverage for desktop and mobile.

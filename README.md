@@ -12,6 +12,7 @@ The runtime is now **Real Provider Mode**: it does not insert bundled market fix
 - Runtime API Connection settings for provider endpoint and token replacement without editing code.
 - Business API client for `GET /sites`, `/partners`, `/branches`, and `/opportunities` using an optional temporary bearer token.
 - Thai/English interface using bundled Noto Sans Thai/Noto Sans fonts, with Thai and light mode as first-run defaults.
+- Guided first-time workflow with one primary action and a visible location → analysis area → recommendation journey.
 - Collapsible desktop sidebar with a persistent device-local preference, mobile navigation drawer, light/dark/system themes, responsive UI, and automated tests.
 - Partner submission prototype with clearly marked local-only persistence.
 
@@ -32,7 +33,7 @@ Tokens entered in Settings exist **only in JavaScript memory** and are cleared b
 Open http://localhost:3000, then:
 
 1. Open `/settings#api-connections` to enable providers or enter TomTom/company API credentials.
-2. Open `/map`, search for a Thailand location or click the map, choose a radius, and press **Check this area**.
+2. Open `/map`, search for a Thailand location or click the map, choose a radius, and press **Analyze this area**.
 3. Configure a company Business API to populate portfolio screens; no company records are fabricated when it is absent.
 
 No database or local backend is required for public map analysis. Read `AI.md`, `docs/ARCHITECTURE.md`, `docs/DATA-SOURCES.md`, and `docs/SECURITY.md` before changing behavior.

@@ -3,8 +3,8 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
-  AlertTriangle, Box, Building2, CheckCircle2, CircleDot, CloudDownload, Database, Focus, Fuel,
-  Gauge, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, Search, Sparkles, Thermometer, Users, Waves, Wind, Zap
+  AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, CircleDot, Database, Focus, Fuel,
+  Gauge, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, RefreshCw, Search, Sparkles, Thermometer, Users, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
 import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
@@ -131,7 +131,6 @@ export function MapExplorer() {
   const [remoteResults, setRemoteResults] = useState<Candidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState("");
-  const [pinMode, setPinMode] = useState(false);
   const [tileWarning, setTileWarning] = useState(false);
   const [onlineTilesReady, setOnlineTilesReady] = useState(false);
   const [interactive, setInteractive] = useState(false);
@@ -185,8 +184,7 @@ export function MapExplorer() {
     setPublicContext(null);
     setQuery("");
     setRemoteResults([]);
-    setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — ผลวิเคราะห์อัปเดตทันที" : "Location selected — analysis updated");
-    setPinMode(false);
+    setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — เลือกรัศมี แล้วกดวิเคราะห์พื้นที่นี้" : "Location selected — choose a radius, then analyze this area");
     mapRef.current?.easeTo({
       center: [candidate.longitude, candidate.latitude],
       zoom: is3DRef.current ? 16.2 : 13.5,
@@ -383,8 +381,8 @@ export function MapExplorer() {
   }, [layerState, publicContext]);
 
   const t = {
-    title: language === "th" ? "ค้นหาและวิเคราะห์พื้นที่" : "Find & analyze a location",
-    subtitle: language === "th" ? "ค้นหาชื่อสถานที่ หรือคลิกจุดใดก็ได้บนแผนที่" : "Search a place or click anywhere on the map",
+    title: language === "th" ? "ค้นหาพื้นที่ที่สนใจ" : "Find a location",
+    subtitle: language === "th" ? "เริ่มจากพิมพ์ชื่อสถานที่ หรือคลิกจุดบนแผนที่" : "Start by searching a place or clicking the map",
     searchPlaceholder: language === "th" ? "เช่น บางนา, อโศก, ศรีราชา หรือชื่อสถานที่" : "Try Bang Na, Asok, Si Racha or an address",
     analyze: language === "th" ? "ค้นหา" : "Search",
     area: language === "th" ? "พื้นที่ว่าง (ตร.ม.) — ไม่บังคับ" : "Available area (m²) — optional",
@@ -392,10 +390,17 @@ export function MapExplorer() {
     estimated: language === "th" ? "ค่าประเมิน" : "Estimated",
     survey: language === "th" ? "ต้องสำรวจพื้นที่จริง" : "Requires site survey"
   };
+  const locationChosen = location.source !== "INITIAL";
+  const currentJourneyStep = publicContext ? 3 : locationChosen ? 2 : 1;
+  const journeySteps = [
+    language === "th" ? "เลือกพื้นที่" : "Select location",
+    language === "th" ? "กำหนดขอบเขต" : "Set analysis area",
+    language === "th" ? "ดูผลและคำแนะนำ" : "Review recommendation",
+  ];
 
   return <main className="map-page simple-map-page">
     <section className="map-toolbar simple-map-toolbar">
-      <div className="map-title"><span className="eyebrow">EV expansion workspace</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
+      <div className="map-title"><span className="eyebrow">{language === "th" ? "เริ่มวิเคราะห์พื้นที่" : "Start location analysis"}</span><h1>{t.title}</h1><p>{t.subtitle}</p></div>
       <form className="map-search-form" onSubmit={searchPlaces}>
         <div className="map-search">
           <Search />
@@ -407,25 +412,31 @@ export function MapExplorer() {
             {!displayedResults.length && !searching && <p>{language === "th" ? "กด “ค้นหา” เพื่อค้นหาชื่อสถานที่ในประเทศไทย" : "Press Search to look up places in Thailand"}</p>}
           </div>}
         </div>
-        <button className="btn primary search-submit" type="submit" disabled={!interactive || searching}>{searching ? "…" : t.analyze}</button>
+        <button className="btn primary search-submit" type="submit" disabled={!interactive || searching || query.trim().length < 2}>{searching ? "…" : t.analyze}</button>
       </form>
-      <label className="area-input"><span>{t.area}</span><input inputMode="numeric" min="1" max="1000000" type="number" value={area} onChange={(event) => setArea(event.target.value)} placeholder="e.g. 600" /></label>
     </section>
 
-    <div className="map-disclaimer"><Database />{language === "th" ? "REAL PROVIDER MODE — ดึงข้อมูลเมื่อกดตรวจพื้นที่ ผลลัพธ์ยังต้องสำรวจพื้นที่จริง" : "REAL PROVIDER MODE — data is fetched on demand; site survey remains required"}</div>
-    {searchMessage && <div className="map-status"><CheckCircle2 />{searchMessage}</div>}
+    <section className="map-journey" aria-label={language === "th" ? "ขั้นตอนการวิเคราะห์พื้นที่" : "Location analysis steps"}>
+      <div className="journey-steps">{journeySteps.map((label, index) => { const step = index + 1; return <div className={`journey-step ${step < currentJourneyStep ? "complete" : ""} ${step === currentJourneyStep ? "active" : ""}`} key={label}><span>{step < currentJourneyStep ? <CheckCircle2 /> : step}</span><strong>{label}</strong>{index < journeySteps.length - 1 && <i />}</div>; })}</div>
+      <div className="journey-data-note"><Database />{language === "th" ? "ดึงข้อมูลจริงเมื่อกดวิเคราะห์ · ต้องสำรวจพื้นที่ก่อนลงทุน" : "Provider data loads on analysis · site survey required"}</div>
+    </section>
+    {searchMessage && <div className="map-status" role="status"><CheckCircle2 />{searchMessage}</div>}
 
     <section className="map-workspace simple-map-workspace">
       <aside className="map-panel analysis-controls">
-        <div className="step-label"><span>1</span>{language === "th" ? "เลือกพื้นที่" : "Choose a location"}</div>
-        <button className={`drop-pin-card ${pinMode ? "active" : ""}`} onClick={() => setPinMode((value) => !value)}>
-          <MousePointer2 /><span><strong>{language === "th" ? "คลิกบนแผนที่" : "Click the map"}</strong><small>{language === "th" ? "เลือกจุดและคำนวณทันที" : "Select a point and calculate instantly"}</small></span>
-        </button>
-        <div className="selected-coordinate"><LocateFixed /><span><strong>{location.label}</strong><small>{location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}</small></span></div>
+        <div className="selected-location-card">
+          <div><span>{language === "th" ? "พื้นที่ที่เลือก" : "Selected location"}</span><small className={locationChosen ? "selected" : "sample"}>{locationChosen ? (language === "th" ? "เลือกแล้ว" : "Selected") : (language === "th" ? "พื้นที่ตัวอย่าง" : "Example")}</small></div>
+          <strong><LocateFixed />{location.label}</strong><p>{location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}</p>
+          <small>{language === "th" ? "ค้นหาด้านบน หรือคลิกจุดใหม่บนแผนที่" : "Search above or click a new point on the map"}</small>
+        </div>
 
-        <div className="panel-divider" />
-        <div className="step-label"><span>2</span>{language === "th" ? "เลือกรัศมีวิเคราะห์" : "Choose analysis radius"}</div>
+        <div className="step-label control-step"><span>2</span>{language === "th" ? "กำหนดขอบเขตวิเคราะห์" : "Set the analysis area"}</div>
         <div className="radius-options large">{RADIUS_OPTIONS_KM.map((value) => <button className={radius === value ? "active" : ""} onClick={() => changeRadius(value)} key={value}>{value} km</button>)}</div>
+        <label className="area-input control-area"><span>{t.area}</span><input inputMode="numeric" min="1" max="1000000" type="number" value={area} onChange={(event) => setArea(event.target.value)} placeholder={language === "th" ? "เช่น 600" : "e.g. 600"} /></label>
+        <button className={`btn primary analyze-area-btn ${publicContext ? "analyzed" : ""}`} type="button" onClick={loadPublicData} disabled={publicLoading}>
+          {publicLoading ? <><RefreshCw className="spin" />{language === "th" ? "กำลังวิเคราะห์…" : "Analyzing…"}</> : publicContext ? <><RefreshCw />{language === "th" ? "อัปเดตผลวิเคราะห์" : "Refresh analysis"}</> : <><Sparkles />{language === "th" ? "วิเคราะห์พื้นที่นี้" : "Analyze this area"}<ArrowRight /></>}
+        </button>
+        {!publicContext && <p className="analyze-helper">{language === "th" ? "ขั้นตอนถัดไป: กดปุ่มนี้เพื่อดึงข้อมูลและคำนวณคะแนน" : "Next: press this button to load data and calculate the score"}</p>}
 
         <details className="layer-details">
           <summary><Layers3 />{language === "th" ? "ชั้นข้อมูลบนแผนที่" : "Map layers"}<span>{Object.values(layerState).filter(Boolean).length}</span></summary>
@@ -450,10 +461,10 @@ export function MapExplorer() {
       </div>
 
       <aside className="map-panel site-panel result-panel">
-        <div className="result-heading"><div><span className="step-label compact"><span>3</span>{t.result}</span><small>{publicContext ? analysis.site.provenance.verifiedStatus : (language === "th" ? "รอข้อมูล API" : "AWAITING API DATA")}</small></div><div className="score-block"><strong>{publicContext ? score.overall : "—"}</strong>{publicContext && <span>/100</span>}</div></div>
+        <div className="result-heading"><div><span className="step-label compact"><span>3</span>{t.result}</span><small>{publicContext ? (language === "th" ? "ผลวิเคราะห์พร้อมแล้ว" : "ANALYSIS READY") : (language === "th" ? "รอการวิเคราะห์" : "READY TO ANALYZE")}</small></div><div className="score-block"><strong>{publicContext ? score.overall : "—"}</strong>{publicContext && <span>/100</span>}</div></div>
         <h2>{analysis.site.name}</h2>
         <p>{radius} km radius · {analysis.site.province} · {analysis.site.district}</p>
-        <div className={`recommendation-strip ${recommendation.overridden ? "warning" : ""}`}><span>{language === "th" ? "คำแนะนำ" : "Recommendation"}</span><strong>{publicContext ? recommendation.label.replaceAll("_", " ") : (language === "th" ? "กดตรวจพื้นที่นี้" : "CHECK THIS AREA")}</strong><small>{publicContext ? recommendation.stationType.replaceAll("_", " ") : (language === "th" ? "เพื่อดึงข้อมูลจริงจาก API" : "Fetch real provider data first")}</small></div>
+        <div className={`recommendation-strip ${recommendation.overridden ? "warning" : ""}`}><span>{language === "th" ? "คำแนะนำ" : "Recommendation"}</span><strong>{publicContext ? recommendation.label.replaceAll("_", " ") : (language === "th" ? "ยังไม่มีผลวิเคราะห์" : "NO ANALYSIS YET")}</strong><small>{publicContext ? recommendation.stationType.replaceAll("_", " ") : (language === "th" ? "เลือกรัศมี แล้วกด “วิเคราะห์พื้นที่นี้” ทางซ้าย" : "Choose a radius, then press “Analyze this area” on the left")}</small></div>
 
         <div className="nearby-grid">
           <div><Zap /><strong>{publicContext ? analysis.counts.evStations : "—"}</strong><span>EV stations</span></div>
@@ -464,21 +475,19 @@ export function MapExplorer() {
 
         <section className="public-api-card" aria-labelledby="public-api-title">
           <div className="public-api-heading">
-            <div><span className="api-kicker">FREE PUBLIC DATA</span><strong id="public-api-title">{language === "th" ? "ตรวจข้อมูลพื้นที่จาก API" : "Check public location APIs"}</strong></div>
-            <button className="btn api-fetch-btn" type="button" onClick={loadPublicData} disabled={publicLoading}>
-              <CloudDownload />{publicLoading ? (language === "th" ? "กำลังตรวจ…" : "Checking…") : (language === "th" ? "ตรวจพื้นที่นี้" : "Check this area")}
-            </button>
+            <div><span className="api-kicker">{language === "th" ? "ข้อมูลประกอบการตัดสินใจ" : "DECISION INPUTS"}</span><strong id="public-api-title">{publicContext ? (language === "th" ? "ข้อมูลพื้นที่ที่ตรวจพบ" : "Available location data") : (language === "th" ? "สิ่งที่ระบบจะตรวจสอบ" : "What the analysis will check")}</strong></div>
+            <span className={`analysis-state ${publicContext ? "ready" : "pending"}`}>{publicContext ? (language === "th" ? "พร้อม" : "Ready") : (language === "th" ? "รอวิเคราะห์" : "Pending")}</span>
           </div>
-          {!publicContext && <p>{language === "th" ? "ดึง EV/ปั๊ม/POI, อากาศ, ความสูง, น้ำท่วม, WorldPop และ TomTom Traffic สำหรับพิกัดนี้" : "Fetch EV/fuel/POIs, weather, elevation, flood, WorldPop and TomTom Traffic for this coordinate."}</p>}
+          {!publicContext && <div className="analysis-preview-list"><span><Zap />{language === "th" ? "สถานี EV คู่แข่ง ปั๊มน้ำมัน และสถานที่สำคัญ" : "EV stations, competitors, fuel stations and POIs"}</span><span><Users />{language === "th" ? "ประชากร การเข้าถึง และความต้องการโดยประมาณ" : "Population, access and estimated demand"}</span><span><Waves />{language === "th" ? "บริบทน้ำท่วม ความสูง อากาศ และการจราจร" : "Flood context, elevation, weather and traffic"}</span></div>}
           {publicContext && <>
             <div className="public-api-metrics">
-              <div><MapPin /><strong>{publicCounts.evStations + publicCounts.gasStations + publicCounts.pois}</strong><span>OSM places</span></div>
-              <div><Thermometer /><strong>{publicContext.weather?.temperatureC == null ? "Unknown" : `${publicContext.weather.temperatureC}°C`}</strong><span>Temperature</span></div>
-              <div><Wind /><strong>{publicContext.weather?.windSpeedKmh == null ? "Unknown" : `${publicContext.weather.windSpeedKmh} km/h`}</strong><span>Wind</span></div>
-              <div><Mountain /><strong>{publicContext.elevationMeters == null ? "Unknown" : `${publicContext.elevationMeters} m`}</strong><span>Elevation</span></div>
-              <div><Waves /><strong>{publicContext.hydrology?.maxSevenDayRiverDischargeM3s == null ? "Unknown" : `${publicContext.hydrology.maxSevenDayRiverDischargeM3s.toFixed(1)} m³/s`}</strong><span>Max river flow · 7d</span></div>
-              <div><Users /><strong>{publicContext.population?.densityPerKm2 == null ? "Unknown" : Math.round(publicContext.population.densityPerKm2).toLocaleString()}</strong><span>Population / km²</span></div>
-              <div><Gauge /><strong>{publicContext.traffic?.currentSpeedKmh == null ? "Token needed" : `${publicContext.traffic.currentSpeedKmh} km/h`}</strong><span>Traffic speed</span></div>
+              <div><MapPin /><strong>{publicCounts.evStations + publicCounts.gasStations + publicCounts.pois}</strong><span>{language === "th" ? "สถานที่รอบพื้นที่" : "Nearby places"}</span></div>
+              <div><Thermometer /><strong>{publicContext.weather?.temperatureC == null ? (language === "th" ? "ไม่ทราบ" : "Unknown") : `${publicContext.weather.temperatureC}°C`}</strong><span>{language === "th" ? "อุณหภูมิ" : "Temperature"}</span></div>
+              <div><Wind /><strong>{publicContext.weather?.windSpeedKmh == null ? (language === "th" ? "ไม่ทราบ" : "Unknown") : `${publicContext.weather.windSpeedKmh} km/h`}</strong><span>{language === "th" ? "ลม" : "Wind"}</span></div>
+              <div><Mountain /><strong>{publicContext.elevationMeters == null ? (language === "th" ? "ไม่ทราบ" : "Unknown") : `${publicContext.elevationMeters} m`}</strong><span>{language === "th" ? "ระดับความสูง" : "Elevation"}</span></div>
+              <div><Waves /><strong>{publicContext.hydrology?.maxSevenDayRiverDischargeM3s == null ? (language === "th" ? "ไม่ทราบ" : "Unknown") : `${publicContext.hydrology.maxSevenDayRiverDischargeM3s.toFixed(1)} m³/s`}</strong><span>{language === "th" ? "การไหลแม่น้ำสูงสุด 7 วัน" : "Max river flow · 7d"}</span></div>
+              <div><Users /><strong>{publicContext.population?.densityPerKm2 == null ? (language === "th" ? "ไม่ทราบ" : "Unknown") : Math.round(publicContext.population.densityPerKm2).toLocaleString()}</strong><span>{language === "th" ? "ประชากร / ตร.กม." : "Population / km²"}</span></div>
+              <div><Gauge /><strong>{publicContext.traffic?.currentSpeedKmh == null ? (language === "th" ? "ต้องใส่โทเคน" : "Token needed") : `${publicContext.traffic.currentSpeedKmh} km/h`}</strong><span>{language === "th" ? "ความเร็วจราจร" : "Traffic speed"}</span></div>
             </div>
             <div className="api-data-note">
               <AlertTriangle /><span>{language === "th" ? "ค่าการไหลของแม่น้ำเป็นข้อมูลแบบจำลองความละเอียดประมาณ 5 กม. ไม่ใช่ผลยืนยันความเสี่ยงน้ำท่วมของแปลงที่ดิน" : "River flow is an approximately 5 km model context, not verified parcel-level flood risk."}</span>

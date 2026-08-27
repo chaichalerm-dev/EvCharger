@@ -7,7 +7,7 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
     body: JSON.stringify([{ display_name: "Asok, Bangkok, Thailand", lat: "13.7366", lon: "100.5600" }])
   }));
   await page.goto("/map");
-  await expect(page.getByRole("heading", { name: "Find & analyze a location" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Find a location" })).toBeVisible();
   await page.getByPlaceholder("Try Bang Na, Asok, Si Racha or an address").fill("Asok");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await page.locator(".search-results button").first().click();
@@ -16,21 +16,21 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
   await expect(page.locator(".result-panel")).toContainText("Asok, Bangkok, Thailand");
   await expect(page.locator(".result-panel")).toContainText("600");
   await page.locator(".maplibregl-canvas").click({ position: { x: 100, y: 180 } });
-  await expect(page.locator(".result-heading")).toContainText("AWAITING API DATA");
+  await expect(page.locator(".result-heading")).toContainText("READY TO ANALYZE");
 });
 
 test("language and theme controls remain interactive", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await expect(page.locator("html")).toHaveAttribute("lang", "th");
-  await expect(page.getByRole("heading", { name: "แดชบอร์ดผู้บริหาร" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /มีพื้นที่ในใจ/ })).toBeVisible();
   await page.goto("/settings");
   await page.getByRole("combobox", { name: "โหมดสี" }).selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("combobox", { name: "ภาษา" }).selectOption("en");
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
-  await expect(page.getByRole("heading", { name: "Executive Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Have a location in mind/ })).toBeVisible();
 });
 
 test("3D and public location context controls remain usable", async ({ page }) => {
@@ -57,7 +57,7 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(threeD).toHaveText("3D", { timeout: 15000 });
   await threeD.click();
   await expect(threeD).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Check this area" }).click();
+  await page.getByRole("button", { name: "Analyze this area" }).click();
   await expect(page.locator(".public-api-card")).toContainText("31°C");
   await expect(page.locator(".public-api-card")).toContainText("4 m");
   await expect(page.locator(".public-api-card")).toContainText("3.5 m³/s");
@@ -74,7 +74,7 @@ test("saved dark theme hydrates without breaking controls", async ({ page }) => 
   await page.goto("/");
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.getByRole("button", { name: "Switch language" }).click();
-  await expect(page.getByRole("heading", { name: "แดชบอร์ดผู้บริหาร" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /มีพื้นที่ในใจ/ })).toBeVisible();
   await expect(page.locator("html")).toHaveAttribute("lang", "th");
   expect(pageErrors.filter((message) => message.includes("Hydration failed"))).toEqual([]);
 });
@@ -108,4 +108,15 @@ test("shows only one sidebar control for each responsive layout", async ({ page 
     await expect(page.getByRole("button", { name: "Collapse sidebar" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Open navigation" })).toBeHidden();
   }
+});
+
+test("guides a first-time user from home to the next map action", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /มีพื้นที่ในใจ/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /เริ่มค้นหาพื้นที่/ }).first()).toBeVisible();
+  await expect(page.locator(".onboarding-step")).toHaveCount(3);
+  await page.getByRole("link", { name: /เริ่มค้นหาพื้นที่/ }).first().click();
+  await expect(page).toHaveURL(/\/map$/);
+  await expect(page.locator(".map-journey .journey-step")).toHaveCount(3);
+  await expect(page.getByRole("button", { name: "วิเคราะห์พื้นที่นี้" })).toBeVisible();
 });
