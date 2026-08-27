@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, CircleDot, Database, Focus, Fuel,
-  Gauge, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, RefreshCw, Search, Sparkles, Thermometer, Users, Waves, Wind, Zap
+  Gauge, Handshake, Layers3, LocateFixed, MapPin, Mountain, MousePointer2, RefreshCw, Search, Sparkles, Target, Thermometer, Users, Waves, Wind, Zap
 } from "lucide-react";
 import { RADIUS_OPTIONS_KM } from "@/src/config/business";
 import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
@@ -17,6 +17,7 @@ import { analyzeRealLocation } from "@/src/services/location-analysis.service";
 import { recommendSite } from "@/src/services/recommendation-engine";
 import { calculateSiteScore } from "@/src/services/scoring-engine";
 import { useApp } from "@/src/store/app-context";
+import { registerMapMarkerImages } from "./map-marker-icons";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
 
@@ -41,14 +42,22 @@ function createBaseStyle(): StyleSpecification {
 }
 
 const LAYERS = [
-  { id: "EV_STATION", label: "EV Stations", labelTh: "สถานีชาร์จ EV", color: "#19a974", default: true },
-  { id: "COMPETITOR", label: "Competitors", labelTh: "คู่แข่ง", color: "#ef6b59", default: true },
-  { id: "GAS_STATION", label: "Gas Stations", labelTh: "ปั๊มน้ำมัน", color: "#e5a21a", default: true },
-  { id: "POI", label: "Points of Interest", labelTh: "สถานที่สำคัญ", color: "#4b86d8", default: true },
-  { id: "FLOOD", label: "Flood Risk", labelTh: "ความเสี่ยงน้ำท่วม", color: "#7a71d8", default: false },
-  { id: "PARTNER_BRANCH", label: "Partner Branches", labelTh: "สาขาพันธมิตร", color: "#9b62c4", default: false },
-  { id: "OPPORTUNITY", label: "Opportunities", labelTh: "พื้นที่โอกาส", color: "#087a5b", default: true }
+  { id: "EV_STATION", label: "EV Stations", labelTh: "สถานีชาร์จ EV", color: "#087a5b", icon: Zap, default: true },
+  { id: "COMPETITOR", label: "Competitors", labelTh: "สถานีคู่แข่ง", color: "#d84f45", icon: Building2, default: true },
+  { id: "GAS_STATION", label: "Gas Stations", labelTh: "ปั๊มน้ำมัน", color: "#c68100", icon: Fuel, default: true },
+  { id: "POI", label: "Points of Interest", labelTh: "สถานที่สำคัญ", color: "#3478c7", icon: MapPin, default: true },
+  { id: "FLOOD", label: "Flood Risk", labelTh: "พื้นที่เสี่ยงน้ำท่วม", color: "#6658c7", icon: Waves, default: false },
+  { id: "PARTNER_BRANCH", label: "Partner Branches", labelTh: "สาขาพันธมิตร", color: "#8850ad", icon: Handshake, default: false },
+  { id: "OPPORTUNITY", label: "Opportunities", labelTh: "พื้นที่โอกาส", color: "#086b51", icon: Target, default: true }
 ] as const;
+
+const ENTITY_ICON_BY_KIND = {
+  EV_STATION: Zap,
+  COMPETITOR: Building2,
+  GAS_STATION: Fuel,
+  POI: MapPin,
+  PARTNER_BRANCH: Handshake
+} as const;
 
 type Candidate = { id: string; label: string; latitude: number; longitude: number; source: "INITIAL" | "OSM" | "MAP" };
 
@@ -312,18 +321,18 @@ export function MapExplorer() {
     });
     map.on("load", () => {
       setMapReady(true);
+      registerMapMarkerImages(map);
       const opportunities = {
         type: "FeatureCollection" as const,
         features: []
       };
       map.addSource("opportunities", { type: "geojson", data: opportunities, cluster: true, clusterRadius: 34, clusterMaxZoom: 11 });
-      map.addLayer({ id: "opportunity-clusters", type: "circle", source: "opportunities", filter: ["has", "point_count"], paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.opportunityClusterRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1, MAP_MARKER_STYLE.normalZoom, 2], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "opportunity-cluster-count", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "text-field": ["get", "point_count_abbreviated"], "text-size": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 7, MAP_MARKER_STYLE.normalZoom, 9], "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
-      map.addLayer({ id: "opportunity-points", type: "circle", source: "opportunities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.opportunityPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1, MAP_MARKER_STYLE.normalZoom, 2], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "opportunity-clusters", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": 1, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": 9, "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
+      map.addLayer({ id: "opportunity-points", type: "symbol", source: "opportunities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": "marker-opportunity", "icon-size": 1, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
 
       map.addSource("entities", { type: "geojson", data: entityCollection([]), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
-      map.addLayer({ id: "entity-clusters", type: "circle", source: "entities", filter: ["has", "point_count"], paint: { "circle-color": "#526b62", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.entityClusterRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, .8, MAP_MARKER_STYLE.normalZoom, 1.5], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "entity-points", type: "circle", source: "entities", filter: ["!", ["has", "point_count"]], paint: { "circle-color": ["match", ["get", "kind"], "EV_STATION", "#19a974", "COMPETITOR", "#ef6b59", "GAS_STATION", "#e5a21a", "POI", "#4b86d8", "#9b62c4"], "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.entityPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, .8, MAP_MARKER_STYLE.normalZoom, 1.5], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "entity-clusters", type: "symbol", source: "entities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": 1, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": 9, "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
+      map.addLayer({ id: "entity-points", type: "symbol", source: "entities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": ["match", ["get", "kind"], "EV_STATION", "marker-ev", "COMPETITOR", "marker-competitor", "GAS_STATION", "marker-gas", "POI", "marker-poi", "marker-partner"], "icon-size": 1, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
 
       map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude, 3) });
       map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#087a5b", "fill-opacity": .11 } });
@@ -331,7 +340,7 @@ export function MapExplorer() {
       map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#087a5b", "line-width": 2.5, "line-dasharray": [2, 2] } });
       map.addSource("selected-point", { type: "geojson", data: pointFeature(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude) });
       map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "selected-point", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledRadius(MAP_MARKER_STYLE.selectedPointRadius), "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], MAP_MARKER_STYLE.overviewZoom, 1.5, MAP_MARKER_STYLE.normalZoom, 3], "circle-stroke-color": "#fff", "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "selected-point", type: "symbol", source: "selected-point", layout: { "icon-image": "marker-selected", "icon-size": 1, "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
 
       map.on("click", "entity-points", (event) => {
         const feature = event.features?.[0];
@@ -376,7 +385,7 @@ export function MapExplorer() {
     const entities = (publicContext?.osmEntities ?? []).filter((entity) => enabledEntityKinds.has(entity.kind));
     (map.getSource("entities") as GeoJSONSource | undefined)?.setData(entityCollection(entities));
     const opportunityVisibility = layerState.OPPORTUNITY ? "visible" : "none";
-    ["opportunity-points", "opportunity-clusters", "opportunity-cluster-count"].forEach((id) => map.setLayoutProperty(id, "visibility", opportunityVisibility));
+    ["opportunity-points", "opportunity-clusters"].forEach((id) => map.setLayoutProperty(id, "visibility", opportunityVisibility));
     map.setLayoutProperty("analysis-risk-fill", "visibility", layerState.FLOOD ? "visible" : "none");
   }, [layerState, publicContext]);
 
@@ -440,7 +449,8 @@ export function MapExplorer() {
 
         <details className="layer-details">
           <summary><Layers3 />{language === "th" ? "ชั้นข้อมูลบนแผนที่" : "Map layers"}<span>{Object.values(layerState).filter(Boolean).length}</span></summary>
-          {LAYERS.map((layer) => <label className="layer-row" key={layer.id}><input type="checkbox" checked={layerState[layer.id]} onChange={() => setLayerState((current) => ({ ...current, [layer.id]: !current[layer.id] }))} /><span className="layer-swatch" style={{ background: layer.color }} /><span>{language === "th" ? layer.labelTh : layer.label}</span></label>)}
+          <p className="layer-hint">{language === "th" ? "ไอคอนเดียวกับที่แสดงบนแผนที่" : "Icons match the symbols shown on the map"}</p>
+          {LAYERS.map((layer) => { const LayerIcon = layer.icon; return <label className="layer-row" key={layer.id}><input type="checkbox" checked={layerState[layer.id]} onChange={() => setLayerState((current) => ({ ...current, [layer.id]: !current[layer.id] }))} /><span className="layer-icon" style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></span><span>{language === "th" ? layer.labelTh : layer.label}</span></label>; })}
         </details>
       </aside>
 
@@ -450,10 +460,14 @@ export function MapExplorer() {
           <span className="dom-place-label label-a">{analysis.site.district}</span><span className="dom-place-label label-b">{analysis.site.province}</span>
           <i className="dom-radius" style={{ width: `${Math.min(82, 24 + radius * 6)}%`, aspectRatio: "1" }} />
           <i className="dom-selected"><span /></i>
-          {visualEntities.map((entity) => <i key={entity.id} title={entity.name} className={`dom-entity entity-${entity.kind.toLowerCase()}`} style={{ left: `${entity.left}%`, top: `${entity.top}%` }} />)}
+          {visualEntities.map((entity) => { const EntityIcon = ENTITY_ICON_BY_KIND[entity.kind]; return <span key={entity.id} title={entity.name} className={`dom-entity entity-${entity.kind.toLowerCase()}`} style={{ left: `${entity.left}%`, top: `${entity.top}%` }}><EntityIcon /></span>; })}
         </div>
         <div className="map-instruction"><MousePointer2 />{language === "th" ? "คลิกจุดที่สนใจบนแผนที่" : "Click a point to analyze it"}</div>
         <div className="map-country-badge"><MapPin />{language === "th" ? "ขอบเขตประเทศไทย" : "Thailand coverage"}</div>
+        <div className="map-symbol-legend" aria-label={language === "th" ? "คำอธิบายสัญลักษณ์บนแผนที่" : "Map symbol legend"}>
+          <strong><Layers3 />{language === "th" ? "สัญลักษณ์" : "Symbols"}</strong>
+          <div>{LAYERS.filter((layer) => layerState[layer.id]).map((layer) => { const LayerIcon = layer.icon; return <span className="map-symbol-item" key={layer.id}><i style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></i>{language === "th" ? layer.labelTh : layer.label}</span>; })}</div>
+        </div>
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
         <button className={`map-float-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} title="MapLibre + OpenFreeMap 3D buildings"><Box />{is3D ? "2D" : mapReady ? "3D" : "Map…"}</button>
         {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`}><Box />{threeDStatus === "READY" ? (language === "th" ? "อาคาร 3D พร้อมใช้งาน" : "3D buildings ready") : threeDStatus === "NO_BUILDINGS" ? (language === "th" ? "ไม่พบอาคาร 3D บริเวณนี้" : "No 3D buildings in view") : `OpenFreeMap 3D · ${threeDStatus}`}</div>}

@@ -53,6 +53,10 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await page.goto("/map");
   await expect(page.locator(".map-canvas")).toHaveAttribute("data-country", "TH");
   await expect(page.locator(".map-country-badge")).toContainText("Thailand coverage");
+  await expect(page.locator(".layer-icon svg")).toHaveCount(7);
+  await expect(page.locator(".map-symbol-legend .map-symbol-item")).toHaveCount(5);
+  await expect(page.locator(".map-symbol-legend")).toContainText("EV Stations");
+  await expect(page.locator(".map-symbol-legend")).toContainText("Gas Stations");
   const threeD = page.locator(".map-3d-btn");
   await expect(threeD).toHaveText("3D", { timeout: 15000 });
   await threeD.click();

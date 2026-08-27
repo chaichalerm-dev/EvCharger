@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 — 2026-08-27
+
+- Replaced ambiguous colored point markers with fixed-size Lucide category symbols.
+- Added matching icons to layer controls, fallback markers, cluster badges, and an always-visible map legend.
+- Kept color as a secondary cue so categories remain understandable without relying on color alone.
+
 ## 0.6.1 — 2026-08-27
 
 - Removed the permanent visual emphasis from Map Explorer in the sidebar.
