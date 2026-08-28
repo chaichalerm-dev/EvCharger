@@ -4,6 +4,20 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.7.1 — 2026-08-28
+
+### ภาษาไทย
+
+- เพิ่มอัตลักษณ์ EV Atlas Thailand ด้วยสัญลักษณ์หมุดทำเลและสายฟ้าชาร์จในสีประจำระบบ
+- ปรับโลโก้ sidebar ให้เป็นลิงก์กลับหน้าหลัก รองรับชื่อที่ screen reader อ่านได้ และมีรูปแบบย่อที่ชัดเจน
+- เปลี่ยน favicon เริ่มต้น พร้อมกำหนด icon metadata ให้ browser และ deployment ใช้ asset เดียวกัน
+
+### English
+
+- Added EV Atlas Thailand branding with a location-pin and charging-bolt mark in the product palette.
+- Turned the sidebar logo into an accessible home link with a clear collapsed treatment.
+- Replaced the starter favicon and declared icon metadata so browsers and deployments use the same asset.
+
 ## 0.7.0 — 2026-08-28
 
 ### ภาษาไทย

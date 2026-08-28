@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowRight, BarChart3, Building2, ChevronDown, ClipboardList, Compass, Database, GitCompareArrows, Globe2, LayoutDashboard, Map, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck, Sun, Users, Waypoints, X, Zap } from "lucide-react";
+import { ArrowRight, BarChart3, Building2, ChevronDown, ClipboardList, Compass, Database, GitCompareArrows, Globe2, LayoutDashboard, Map, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Settings, ShieldCheck, Sun, Users, Waypoints, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApp } from "@/src/store/app-context";
 import { translate, type TranslationKey } from "@/src/lib/i18n";
@@ -38,7 +38,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return <div className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
     <aside id="primary-sidebar" className={`sidebar ${menuOpen ? "mobile-open" : ""}`}>
-      <div className="brand"><div className="brand-mark"><Zap size={21} /></div><div className="brand-copy"><div className="brand-title">EV Atlas</div><div className="brand-sub">Thailand Intelligence</div></div></div>
+      <Link href="/" className="brand" aria-label={t("brandHomeLabel")} title={sidebarCollapsed ? "EV Atlas Thailand" : undefined}>
+        <span className="brand-mark" aria-hidden="true" />
+        <span className="brand-copy"><span className="brand-title">EV Atlas <b>TH</b></span><span className="brand-sub">{t("brandSubtitle")}</span></span>
+      </Link>
       <nav aria-label={t("primaryNavigation")}>{nav.map(group => <div key={group.section}><div className="nav-section">{t(group.section)}</div>{group.items.map(item => { const Icon = item.icon; const active = path === item.href || (item.href !== "/" && path.startsWith(item.href)); const label = t(item.label); return <Link key={item.href} href={item.href} className={`nav-link ${active ? "active" : ""}`} aria-current={active ? "page" : undefined} title={sidebarCollapsed ? label : undefined} aria-label={label} onClick={() => setMenuOpen(false)}><Icon /><span>{label}</span></Link>; })}</div>)}</nav>
       <div className="sidebar-foot"><strong>{t("realProviderMode")}</strong><p>{t("providerModeDescription")}</p></div>
     </aside>

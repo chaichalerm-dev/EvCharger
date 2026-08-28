@@ -21,6 +21,8 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
 
 test("language and theme controls remain interactive", async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator(".brand")).toHaveAttribute("aria-label", "หน้าหลัก EV Atlas Thailand");
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await expect(page.locator("html")).toHaveAttribute("lang", "th");
   await expect(page.getByRole("heading", { name: /มีพื้นที่ในใจ/ })).toBeVisible();

@@ -9,13 +9,18 @@ import "./operations.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_ORIGIN || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? "https://"+process.env.VERCEL_PROJECT_PRODUCTION_URL : "http://localhost:3000")),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_ORIGIN || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000")),
   title: "EV Atlas Thailand | Expansion Intelligence",
   description: "A frontend-first decision support prototype for EV charging expansion in Thailand.",
+  applicationName: "EV Atlas Thailand",
+  icons: {
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
+  },
   openGraph: {
     title: "EV Atlas Thailand",
     description: "Location & Expansion Intelligence for EV charging infrastructure decisions.",
-    images: [{url:"/og.png",width:1731,height:909,alt:"EV Atlas Thailand — Location & Expansion Intelligence"}],
+    images: [{ url: "/og.png", width: 1731, height: 909, alt: "EV Atlas Thailand — Location & Expansion Intelligence" }],
   },
   twitter: {
     card: "summary_large_image",
