@@ -1,15 +1,78 @@
-# Map
+# Map and GIS Behavior / แผนที่และพฤติกรรม GIS
 
-MapLibre GL JS renders OpenStreetMap raster tiles without a paid token. A clean local grid/context layer remains visible when the external tile service cannot be reached, so the primary location-selection flow does not become a blank screen. The fallback is hidden automatically after online tiles load to avoid duplicate map lines. Opportunity and entity sources are GeoJSON; opportunities use client clustering. Entity categories include EV stations, competitors, gas stations, POIs, and partner branches.
+## ภาษาไทย
 
-The prototype creates a geodesic radius polygon. Users use a user-triggered OpenStreetMap/Nominatim lookup or click any point on the map. Search is restricted to country code `TH`, and the camera is constrained to a configurable Thailand navigation envelope. The selected point, 1/3/5/10 km radius, and optional site area feed real-provider context into the standalone analysis service. Results remain Estimated/Approximate and unavailable survey facts remain Unknown.
+### Basemap และ fallback
 
-The 3D control enables two independent open-data layers, centers the camera on the selected point, tilts to 65 degrees, and moves to street-detail zoom. Mapterhorn provides global bare-earth terrain (30 m coverage for Thailand), while OpenFreeMap provides building footprints and height attributes derived from OpenStreetMap. Terrain therefore remains available throughout Thailand, but extruded buildings appear only where OpenStreetMap contains usable building geometry. Flat areas such as much of Bangkok may still look nearly level; that is a characteristic of the terrain rather than a failed 3D camera. The UI distinguishes “terrain and buildings ready,” “terrain only,” loading, and provider-unavailable states instead of claiming nationwide building coverage. Both provider endpoints are replaceable in Settings.
+MapLibre GL JS render OpenStreetMap raster tiles โดยไม่ต้องใช้ paid token แกนหลัก หาก tile ภายนอกไม่พร้อม local fallback context ช่วยให้ผู้ใช้ยังเห็นพื้นที่เลือกและรัศมีโดยไม่กลายเป็นหน้าว่าง Fallback ซ่อนหลัง online tiles โหลดสำเร็จเพื่อไม่ให้เกิดเส้นซ้อน
 
-Building extrusion starts at zoom 14 and is always placed below analysis and marker layers. The map requests antialiasing for clearer extrusion edges. Individual records use viewport-aligned Lucide pictograms rather than ambiguous colored dots: lightning for EV charging, a building for competitors, a fuel pump for gas stations, a pin for POIs, a handshake for partner branches, and a target for opportunities. Every marker category uses a configured zoom expression: symbols shrink aggressively at Thailand/province zoom levels and only approach their full compact size at street/detail zoom. Cluster badges and their count text follow the same rule. The visible legend and layer controls repeat the same icons and labels, so color is never the only category cue. Clustering further limits visual obstruction. The on-demand public-data control retrieves nearby OSM places plus Open-Meteo weather, elevation, and river-discharge context. Successful OSM results are added to the active entity layer. Partial provider failure is shown in the result panel and does not replace the deterministic demo score.
+### ขอบเขตประเทศไทย
 
-The layer controls remain expanded so every available category and icon stays visible. The on-map legend is collapsed by default to preserve map space; users can open it to see every category, including disabled layers shown with a subdued off state.
+Nominatim search ใช้ country code `TH` และกล้องถูกจำกัดด้วย navigation envelope จาก configuration ไม่ฝังรายชื่อจังหวัดใน logic ผู้ใช้ยังสามารถเตรียม coverage config สำหรับประเทศอื่นในอนาคต ป้ายข้อความขอบเขตประเทศไทยถูกเอาออกจาก canvas เพื่อลดสิ่งรบกวน แต่ข้อจำกัดยังทำงาน
 
-The redundant Thailand-coverage and click-instruction overlays are intentionally omitted from the map canvas. The 3D/2D and recenter actions use compact icon-only controls with accessible names and hover titles.
+### การเลือกและวิเคราะห์พื้นที่
 
-The on-demand action queries Overpass, Open-Meteo, WorldPop, and optional TomTom. Each failure is isolated and shown without crashing the map. Provider endpoints/tokens are replaceable in Settings. Future work: authoritative parcel/flood/traffic contracts, heatmap source, terrain, persisted site-boundary editing, server-side credential proxying, provider health reporting, and tiling strategies for large datasets.
+- ค้นหาชื่อสถานที่หรือคลิก map
+- selected point แสดงด้วย marker ที่อยู่เหนือ terrain/building
+- เลือกรัศมี 1, 3, 5 หรือ 10 กม. จาก config
+- สร้าง geodesic radius polygon ใน browser สำหรับ prototype
+- ระบุพื้นที่ว่างเป็น optional input
+- กด Analyze เพื่อเรียก Overpass, Open-Meteo, WorldPop และ TomTom เมื่อเปิดใช้งาน
+- ผล partial failure แสดงแยก ไม่ทำให้ map crash
+
+งาน production ใช้ PostGIS geography สำหรับ distance/radius และ authoritative boundary แทน browser approximation
+
+### Layer และสัญลักษณ์
+
+Layer controls มี EV stations, competitors, gas stations, POI, flood, partner branches และ opportunities ทุกแถวมี checkbox, icon, label และสถานะ on/off ป้าย legend บนแผนที่พับเป็นปุ่มเล็กโดยค่าเริ่มต้นและเปิดดู category ทั้งหมดได้
+
+Marker ใช้ Lucide pictogram และสีเป็นสัญญาณรอง ได้แก่ lightning, building, fuel pump, pin, handshake และ target Symbol ใช้ zoom expression ที่จำกัดขนาด: เล็กมากในระดับประเทศ/จังหวัดและค่อยเข้าใกล้ขนาด detail เมื่อซูมเข้า จึงไม่ขยายบังพื้นที่เมื่อซูมออก Cluster badge และ count ใช้หลักเดียวกัน
+
+### 3D terrain และอาคาร
+
+ปุ่ม icon-only เปิดสอง layer อิสระ:
+
+1. Mapterhorn raster DEM สำหรับ terrain/hillshade พร้อม exaggeration ระดับสาธิต
+2. OpenFreeMap vector building สำหรับ fill extrusion จาก `render_height`/`render_min_height`
+
+เมื่อเปิด 3D กล้องกลับไป selected point, zoom ใกล้, pitch 65° และ bearing ที่ช่วยอ่านรูปทรง Terrain มี coverage กว้าง แต่อาคาร 3D ปรากฏเฉพาะพื้นที่ที่ OpenStreetMap มี building geometry/height ที่ใช้ได้ พื้นที่ราบในกรุงเทพฯ อาจดูเกือบแบนแม้ terrain ทำงาน ระบบแสดงสถานะ terrain+building, terrain-only, loading หรือ unavailable ตามจริง
+
+Building เริ่ม render ที่ zoom 14 ใช้ antialias และวางใต้ analysis polygon, marker และ cluster เพื่อไม่บังข้อมูลตัดสินใจ ปุ่ม recenter เป็น icon-only พร้อม accessible name
+
+### Accessibility และ mobile
+
+Canvas มี accessible label การค้นหา รัศมี และ analyze ใช้งานได้ด้วย keyboard ปุ่ม icon-only มี `aria-label`, `title`, focus-visible และสถานะ pressed ป้าย click instruction และ coverage ถูกนำออกเพื่อรักษาพื้นที่ Mobile เรียง control, map, result และจำกัด legend ที่เปิดไม่ให้ครอบ canvas มากเกินไป
+
+### งานอนาคต
+
+Authoritative parcel/flood/traffic contracts, polygon drawing ที่ persist, route/access analysis, server tiling, vector tile strategy, provider health, offline plan, PostGIS query และ server-side credential proxy
+
+---
+
+## English
+
+### Basemap and fallback
+
+MapLibre renders OpenStreetMap raster tiles without a paid core token. If external tiles fail, local context preserves point and radius interaction rather than showing a blank surface. The fallback hides after online tiles load to avoid duplicate lines.
+
+### Thailand scope
+
+Nominatim search uses country code `TH`, and the camera is constrained by a configurable navigation envelope. Province names are not embedded in business logic. The visible Thailand badge was removed to reduce clutter; the constraint remains active.
+
+### Selection and analysis
+
+Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
+
+### Layers and symbols
+
+Layer controls expose every category with checkbox, icon, label, and on/off state. The on-map legend is collapsed by default. Lucide pictograms carry category meaning, with color as a secondary cue. Capped zoom expressions make markers and clusters small at country/province zoom and only approach detail size when zooming in.
+
+### 3D terrain and buildings
+
+3D independently enables Mapterhorn raster DEM terrain/hillshade and OpenFreeMap fill-extrusion buildings. The camera centers on the selected point at close zoom, 65° pitch, and a useful bearing. Terrain has broad coverage, while buildings appear only where usable OpenStreetMap geometry and height exist. Flat Bangkok terrain may still look nearly level. UI reports terrain-plus-buildings, terrain-only, loading, or unavailable honestly.
+
+Buildings begin at zoom 14 with antialiasing and remain below analysis and marker overlays. Recenter and 3D actions are compact icon-only controls with accessible names.
+
+### Accessibility, mobile, and future work
+
+Search, radius, and analysis controls are keyboard-accessible. Icon actions expose labels, titles, focus, and pressed state. Mobile preserves canvas space. Future work includes authoritative parcel/flood/traffic data, persisted polygon drawing, access routing, server tiling, provider health, offline strategy, PostGIS, and a credential proxy.
