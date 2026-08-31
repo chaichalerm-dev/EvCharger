@@ -49,6 +49,10 @@ Prototype ใช้ browser-memory cache และ bounded timeout เพื่�
 
 ก่อน commercial launch ต้องตรวจ terms, attribution, redistribution, derived-data rights, rate limits, SLA, CORS และ geographic coverage ใหม่ทุก provider พิกัดและ polygon ที่ผู้ใช้เลือกอาจถูกส่งให้ provider เมื่อกดวิเคราะห์ จึงต้องมี privacy notice และ data minimization ที่เหมาะสม
 
+### อาคาร 3D จากข้อมูล OSM
+
+OpenFreeMap building tiles เป็นชั้นแรก และ bounded Overpass query สำหรับ `way["building"]` ภายใน 700 เมตรรอบหมุดเป็น fallback โดยจำกัด 450 อาคาร รูปทรงเป็นข้อมูล OSM จริง ค่า `height` ใช้เมื่อมี tag; หากไม่มีจะประมาณจาก `building:levels` หรือใช้ความสูงแสดงผลเริ่มต้น 6.2 เมตร อาคารที่ครอบหมุดหรือใกล้ที่สุดภายใน 120 เมตรจะถูกเน้นสี การแสดงผลนี้ไม่ใช่ผลสำรวจความสูงอาคาร
+
 ---
 
 ## English
@@ -60,6 +64,8 @@ Runtime operates in Real Provider Mode. Public observations are requested only a
 Each provider should carry provider name, endpoint, terms, coverage, collection method, timestamps, confidence, verification, cache age, and error state. Production ingestion retains auditable raw snapshots and runs idempotent synchronization.
 
 The client first uses the configured Overpass endpoint. If it fails, bounded Photon `/reverse` queries request charging stations, fuel stations, and nearby OSM `amenity`, `shop`, and `tourism` records. Timeouts, result limits, and memory caching keep use modest. Both are shared community/demo services without a production SLA.
+
+For 3D mode, OpenFreeMap building tiles remain the first layer and a bounded Overpass `way["building"]` query within 700 metres of the selected pin provides a fallback, capped at 450 buildings. Footprints are real OSM geometry. Tagged `height` is preferred; otherwise `building:levels` or a 6.2-metre display default supplies an explicitly estimated extrusion. The containing or nearest building within 120 metres is highlighted. This visualization is not a building-height survey.
 
 ### Connected providers
 

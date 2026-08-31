@@ -49,14 +49,20 @@ test("language and theme controls remain interactive", async ({ page }) => {
 
 test("3D and public location context controls remain usable", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
-  await page.route("**/api/interpreter", (route) => route.fulfill({
-    contentType: "application/json",
-    body: JSON.stringify({ elements: [
-      { type: "node", id: 7, lat: 13.668, lon: 100.636, tags: { amenity: "charging_station", name: "Education test charger" } },
-      { type: "node", id: 8, lat: 13.669, lon: 100.637, tags: { amenity: "fuel", name: "Education test fuel" } },
-      { type: "node", id: 9, lat: 13.671, lon: 100.639, tags: { amenity: "hospital", name: "Education test hospital" } },
-    ] })
-  }));
+  await page.route("**/api/interpreter", (route) => {
+    const isBuildingRequest = route.request().postData()?.includes('way%5B%22building%22%5D') ?? false;
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ elements: isBuildingRequest ? [
+        { type: "way", id: 101, tags: { building: "commercial", "building:levels": "4" }, geometry: [{ lat: 13.6679, lon: 100.6355 }, { lat: 13.6679, lon: 100.6359 }, { lat: 13.6683, lon: 100.6359 }, { lat: 13.6683, lon: 100.6355 }, { lat: 13.6679, lon: 100.6355 }] },
+        { type: "way", id: 102, tags: { building: "yes", height: "18" }, geometry: [{ lat: 13.669, lon: 100.637 }, { lat: 13.669, lon: 100.6372 }, { lat: 13.6692, lon: 100.6372 }, { lat: 13.6692, lon: 100.637 }] },
+      ] : [
+        { type: "node", id: 7, lat: 13.668, lon: 100.636, tags: { amenity: "charging_station", name: "Education test charger" } },
+        { type: "node", id: 8, lat: 13.669, lon: 100.637, tags: { amenity: "fuel", name: "Education test fuel" } },
+        { type: "node", id: 9, lat: 13.671, lon: 100.639, tags: { amenity: "hospital", name: "Education test hospital" } },
+      ] })
+    });
+  });
   await page.route("**/api.open-meteo.com/v1/forecast**", (route) => route.fulfill({
     contentType: "application/json",
     body: JSON.stringify({ current: { temperature_2m: 31, precipitation: 0.2, wind_speed_10m: 8, weather_code: 2 } })
@@ -98,7 +104,8 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(threeD).toHaveAttribute("aria-pressed", "true");
   await expect(threeD).toHaveAttribute("aria-label", "Switch to 2D map");
   await expect(page.locator(".map-3d-status")).toBeVisible();
-  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", /LOADING|READY|TERRAIN_ONLY|UNAVAILABLE/);
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
+  await expect(page.locator(".map-3d-status")).toContainText("2 OSM buildings ready");
   await page.getByRole("button", { name: "Analyze this area" }).click();
   await expect(page.locator(".public-api-card")).toContainText("31°C");
   await expect(page.locator(".public-api-card")).toContainText("4 m");
