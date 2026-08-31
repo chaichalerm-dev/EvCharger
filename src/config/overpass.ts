@@ -9,4 +9,3 @@ export const OVERPASS_RESULT_LIMITS = {
 export const PHOTON_OSM_TAG_GROUPS = ["amenity:charging_station", "amenity:fuel", "amenity", "shop", "tourism"] as const;
 export const PHOTON_RESULT_LIMIT = 50;
 export const DEFAULT_PHOTON_ENDPOINT = "https://photon.komoot.io/reverse";
-export const PHOTON_PROXY_PATH = "/api/photon";
