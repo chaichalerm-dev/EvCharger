@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "@fontsource-variable/noto-sans/index.css";
 import "@fontsource-variable/noto-sans-thai/index.css";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -30,6 +31,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="th" suppressHydrationWarning><body inert suppressHydrationWarning><Providers>{children}</Providers></body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  return <html lang="th" suppressHydrationWarning><body inert suppressHydrationWarning><Providers nonce={nonce}>{children}</Providers></body></html>;
 }

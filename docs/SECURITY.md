@@ -8,6 +8,10 @@
 
 ### สิ่งที่ทำแล้วในต้นแบบ
 
+- HTTP security headers สำหรับหน้าเว็บ: CSP แบบ nonce ต่อ request, HSTS, `nosniff`, anti-framing, Referrer Policy, Permissions Policy, COOP/CORP และการปิด legacy XSS auditor
+- Production CSP ไม่ใช้ `unsafe-inline` หรือ `unsafe-eval` ใน `script-src`; development อนุญาต `unsafe-eval` เฉพาะเพื่อเครื่องมือ debug ของ React
+- CSP ห้าม object, frame ancestor, inline event handler และจำกัด script ไว้ที่ไฟล์ของแอปที่ได้รับ nonce
+- `connect-src https:` และ `img-src https:` เปิดไว้โดยตั้งใจ เพราะผู้ใช้เปลี่ยน endpoint ของ data provider ได้จาก Settings; script จากภายนอกยังถูกห้าม
 - React render ข้อความโดยไม่ใช้ unsafe HTML
 - Zod validation และจำกัดความยาว/ช่วงตัวเลขใน form สำคัญ
 - Endpoint validation อนุญาต HTTPS และ localhost HTTP
@@ -27,6 +31,19 @@
 - ไม่ป้องกันผู้ใช้ที่ควบคุม browser จากการแก้ client state
 - ไม่ซ่อน browser-visible API key
 - ไม่ให้ SLA, incident response หรือ audit trail ที่เชื่อถือได้
+- คะแนนจากเครื่องมือตรวจภายนอกขึ้นกับ response ที่เครื่องมือนั้นเข้าถึงจริง หากโดเมนเป็น owner-only เครื่องมือจะตรวจหน้า access gateway ของผู้ให้บริการ hosting แทน response ของแอป
+
+### การตรวจ HTTP security headers
+
+Response ของหน้าแอปต้องมี `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` และ `Permissions-Policy` ครบ ชุดค่าถูกกำหนดรวมศูนย์ใน `src/config/security-headers.ts` และสร้าง nonce ใหม่ใน `proxy.ts` ทุก request
+
+ตรวจหลัง deploy ด้วย:
+
+```bash
+curl -I https://your-domain.example/
+```
+
+จากนั้นสแกนโดเมนสาธารณะที่เข้าถึงได้ด้วย SecurityHeaders.com การได้ A+ หมายถึงชุด response headers ที่เครื่องมือพบครบตามเกณฑ์ ไม่ได้หมายความว่าแอปปลอดภัยระดับ production หรือผ่าน penetration test
 
 ### ข้อกำหนด production
 
@@ -72,11 +89,21 @@ This is a functional prototype, not a production-secure application. It does not
 
 ### Implemented prototype safeguards
 
-React text rendering, schema validation, safe endpoint rules, memory-only runtime tokens, no embedded production credentials, bounded local photo preview, centralized Demo permission UX, confirmation dialogs, explicit insecurity warnings, and bounded user-triggered provider requests reduce prototype risk.
+Page responses use a per-request nonce CSP, HSTS, MIME-sniffing protection, anti-framing controls, Referrer Policy, Permissions Policy, COOP/CORP, and conservative legacy fallbacks. Production `script-src` contains neither `unsafe-inline` nor `unsafe-eval`. Development alone permits `unsafe-eval` for React debugging. External scripts remain blocked.
+
+The CSP intentionally permits HTTPS data and image connections because provider endpoints are replaceable in Settings. This is broader than a fixed provider allow-list but preserves the documented provider abstraction without allowing third-party script execution.
+
+React text rendering, schema validation, safe endpoint rules, memory-only runtime tokens, no embedded production credentials, bounded local photo preview, centralized Demo permission UX, confirmation dialogs, explicit insecurity warnings, and bounded user-triggered provider requests further reduce prototype risk.
 
 ### Not provided
 
-The prototype does not securely authenticate, enforce server authorization, encrypt localStorage, resist a user controlling client state, hide browser-visible keys, or provide production SLA, incident response, or trusted audit.
+The prototype does not securely authenticate, enforce server authorization, encrypt localStorage, resist a user controlling client state, hide browser-visible keys, or provide production SLA, incident response, or trusted audit. An external scanner can inspect only the response it can reach; an owner-only deployment may expose the hosting access gateway instead of application headers.
+
+### HTTP-header verification
+
+The required application-page response set is `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy`. Configuration is centralized in `src/config/security-headers.ts`; `proxy.ts` generates a new nonce for every page request.
+
+After deployment, inspect the public response with `curl -I https://your-domain.example/`, then scan a publicly reachable domain with SecurityHeaders.com. An A+ reports header coverage observed by that scanner; it is not a production-security certification or penetration test.
 
 ### Production requirements
 

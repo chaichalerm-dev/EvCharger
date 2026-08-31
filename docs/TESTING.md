@@ -20,6 +20,7 @@ Vitest/React Testing Library ครอบคลุม:
 - Confirmation dialog accessibility
 - API connection defaults และ replaceable providers
 - Arbitrary-location analysis
+- ชุด security headers ที่ SecurityHeaders.com ตรวจ, HSTS และ production CSP แบบ nonce ที่ไม่มี unsafe script directive
 
 ### End-to-end tests
 
@@ -55,6 +56,7 @@ npm run build:vercel
 - จุดใกล้ขอบประเทศไทย พื้นที่ราบ และพื้นที่ภูเขาใน 3D
 - Network ช้า offline quota exceeded และ malformed response
 - ข้อความ Unknown/Estimated/Verified ไม่ทำให้เข้าใจผิด
+- Response headers ของโดเมนที่ deploy จริง รวมถึงกรณี hosting access gateway ตอบแทนตัวแอป
 
 ### Test data
 
@@ -74,13 +76,13 @@ Test by risk: pure business rules use unit tests, interactions use React Testing
 
 ### Coverage
 
-Unit/component coverage includes scoring, flood overrides, area and electrical gaps, bilingual search/filtering, empty/error behavior, submission validation, Demo permissions, confirmation accessibility, API configuration, and arbitrary-location analysis.
+Unit/component coverage includes scoring, flood overrides, area and electrical gaps, bilingual search/filtering, empty/error behavior, submission validation, Demo permissions, confirmation accessibility, API configuration, arbitrary-location analysis, the required security-header set, HSTS, and a nonce-based production CSP without unsafe script directives.
 
 Playwright covers desktop/mobile search and recalculation, partial provider context, 3D controls, persistent layer controls, collapsible legend, language/theme, sidebar/mobile navigation, active routes, and the first-time journey.
 
 ### Commands and manual checks
 
-Run the commands above. Manual checks still cover keyboard/screen-reader behavior, focus, contrast, touch and map gestures, attribution, Thailand edge locations, flat/mountain 3D, adverse networks, and honest quality labels.
+Run the commands above. Manual checks still cover keyboard/screen-reader behavior, focus, contrast, touch and map gestures, attribution, Thailand edge locations, flat/mountain 3D, adverse networks, honest quality labels, and deployed response headers. Distinguish application responses from a hosting access gateway response.
 
 ### Data and release gates
 

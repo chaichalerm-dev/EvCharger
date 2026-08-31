@@ -53,6 +53,14 @@ Core map analysis ใช้ค่า provider default ที่ไม่ต้�
 7. ภาษา/theme สลับและคงค่าตามที่ออกแบบ
 8. Company screen แสดง empty/error state เมื่อยังไม่ตั้ง Business API
 9. Partner submission แสดงคำเตือน local prototype persistence
+10. `curl -I` ที่โดเมนจริงพบ CSP, HSTS, `nosniff`, anti-framing, Referrer Policy และ Permissions Policy
+11. CSP ของ production มี nonce และไม่มี `unsafe-inline`/`unsafe-eval` ใน `script-src`
+
+### SecurityHeaders.com
+
+สแกนได้เฉพาะโดเมนที่ระบบภายนอกเข้าถึง response ของแอปได้ หาก deployment เป็น owner-only เครื่องมือจะเห็น `401` หรือหน้า sign-in ของ hosting gateway และคะแนนนั้นไม่ใช่คะแนนของตัวแอป ห้ามเปลี่ยนเว็บไซต์เป็น public เพียงเพื่อสแกนโดยไม่ได้รับอนุมัติจากเจ้าของ
+
+สำหรับโดเมน public ให้เปิด `https://securityheaders.com/` ใส่ URL เต็ม เปิด follow redirects และตรวจว่าหน้า root กับ route สำคัญใช้ชุด header เดียวกัน คะแนน A+ เป็นเพียงผลของ HTTP response header ไม่ใช่การรับรองความปลอดภัยทั้งระบบ
 
 ### Rollback และ observability
 
@@ -80,7 +88,11 @@ Hosting metadata contains only the project ID and permitted logical bindings. Th
 
 ### Runtime configuration and smoke testing
 
-The key-free provider defaults support core analysis. Eligible client keys may be entered temporarily in Settings. Confidential provider credentials belong behind a backend/BFF. After deployment, test first-run language/theme, navigation, map/fallback, search/radius/analysis, 2D/3D, layers/legend, partial failure, settings, honest company empty states, and local-submission warnings.
+The key-free provider defaults support core analysis. Eligible client keys may be entered temporarily in Settings. Confidential provider credentials belong behind a backend/BFF. After deployment, test first-run language/theme, navigation, map/fallback, search/radius/analysis, 2D/3D, layers/legend, partial failure, settings, honest company empty states, local-submission warnings, and the production security-header set. Production `script-src` must carry a nonce and contain neither `unsafe-inline` nor `unsafe-eval`.
+
+### SecurityHeaders.com
+
+An external scanner can grade only an application response it can reach. On an owner-only deployment it may receive a `401` or hosting sign-in gateway, which is not the application's header result. Never make a deployment public solely for scanning without owner approval. For a public domain, scan the full URL with redirects enabled and verify both the root and representative routes. An A+ is a response-header grade, not a whole-system security certification.
 
 ### Rollback and observability
 

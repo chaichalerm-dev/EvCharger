@@ -4,6 +4,22 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.0 — 2026-08-31
+
+### ภาษาไทย
+
+- เพิ่ม security headers ที่ SecurityHeaders.com ตรวจครบ: CSP, HSTS, `nosniff`, anti-framing, Referrer Policy และ Permissions Policy พร้อม headers ป้องกันเพิ่มเติม
+- ใช้ CSP แบบ nonce ใหม่ทุก page request และตัด `unsafe-inline`/`unsafe-eval` ออกจาก production `script-src`
+- รักษาการเชื่อมต่อ MapLibre และ API provider ที่เปลี่ยน endpoint ได้ โดยอนุญาต HTTPS data/image connection แต่ไม่อนุญาต external script
+- เพิ่ม automated tests และคู่มือตรวจหลัง deploy พร้อมอธิบายข้อจำกัดของ owner-only hosting gateway
+
+### English
+
+- Added the complete SecurityHeaders-checked set: CSP, HSTS, MIME-sniffing protection, anti-framing, Referrer Policy, and Permissions Policy, plus defense-in-depth headers.
+- Added a fresh nonce per page request and removed `unsafe-inline`/`unsafe-eval` from production `script-src`.
+- Preserved MapLibre and replaceable provider endpoints through HTTPS data/image connections without permitting external scripts.
+- Added automated coverage and deployment verification guidance, including the owner-only hosting-gateway limitation.
+
 ## 0.8.1 — 2026-08-31
 
 ### ภาษาไทย
