@@ -4,6 +4,22 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.8.0 — 2026-08-31
+
+### ภาษาไทย
+
+- เปลี่ยนภาพลักษณ์หลักจากสีเขียวเป็น Electric Blue และ Cyan เพื่อสื่อถึงพลังงานไฟฟ้า เทคโนโลยี และข้อมูลตำแหน่ง
+- ปรับ design tokens ทั้งโหมดสว่างและมืด รวมพื้นหลัง panel เส้นขอบ ตัวอักษร เงา ปุ่มหลัก sidebar และสถานะ active
+- ปรับสีแผนที่ พื้นที่วิเคราะห์ หมุด EV, POI, Opportunity, จุดที่เลือก และ cluster ให้แยกประเภทได้ชัดเจน
+- ปรับโลโก้และ favicon ให้ใช้ชุดสีเดียวกับธีมใหม่ พร้อมเพิ่ม E2E test ตรวจค่าสีหลักของ light/dark theme
+
+### English
+
+- Shifted the primary identity from green to Electric Blue and Cyan to communicate electricity, technology, and location intelligence.
+- Updated light and dark design tokens across backgrounds, panels, borders, typography, shadows, primary actions, sidebar, and active states.
+- Recolored the map analysis area and EV, POI, opportunity, selected, and cluster symbols for clear category separation.
+- Aligned the logo and favicon with the new palette and added E2E coverage for light/dark primary colors.
+
 ## 0.7.1 — 2026-08-28
 
 ### ภาษาไทย

@@ -35,3 +35,6 @@
 /* Unobtrusive icon-only map actions */
 .map-float-btn.map-icon-btn{width:34px;height:34px;padding:0;justify-content:center;border-radius:9px}.map-float-btn.map-icon-btn svg{width:15px;height:15px}.map-center-btn{right:12px}.map-icon-btn:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 32%,transparent);outline-offset:2px}
 @media(max-width:720px){.map-float-btn.map-icon-btn{width:32px;height:32px}.map-center-btn{right:10px;bottom:10px}}
+
+/* Electric blue map workspace */
+.search-results{box-shadow:0 16px 42px rgba(12,42,76,.20)}.analyze-area-btn{box-shadow:0 8px 20px rgba(8,127,240,.22)}.map-canvas-wrap{background:#e7eff8}.fallback-map-visual{background-image:linear-gradient(rgba(31,111,186,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(31,111,186,.04) 1px,transparent 1px)}.dom-place-label{color:#58738e}.dom-radius{background:rgba(8,127,240,.10)}.entity-ev_station{background:#0b84f3}.entity-poi{background:#6d5ce7}.layer-panel .layer-icon{box-shadow:0 2px 6px rgba(18,56,94,.07)}.map-symbol-legend.collapsed{box-shadow:0 4px 14px rgba(18,56,94,.14)}.dark .map-canvas-wrap{background:#0f2236}.dark .fallback-map-visual{background-image:linear-gradient(rgba(74,168,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(74,168,255,.055) 1px,transparent 1px)}.dark .dom-place-label{color:#aac0d8;background:rgba(9,27,47,.78)}

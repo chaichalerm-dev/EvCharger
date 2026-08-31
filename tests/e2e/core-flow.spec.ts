@@ -25,10 +25,12 @@ test("language and theme controls remain interactive", async ({ page }) => {
   await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.locator("html")).not.toHaveClass(/dark/);
   await expect(page.locator("html")).toHaveAttribute("lang", "th");
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--brand").trim())).toBe("#006fdd");
   await expect(page.getByRole("heading", { name: /มีพื้นที่ในใจ/ })).toBeVisible();
   await page.goto("/settings");
   await page.getByRole("combobox", { name: "โหมดสี" }).selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
+  await expect.poll(() => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--brand").trim())).toBe("#4aa8ff");
   await page.getByRole("combobox", { name: "ภาษา" }).selectOption("en");
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");

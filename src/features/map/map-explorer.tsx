@@ -36,20 +36,20 @@ function createBaseStyle(): StyleSpecification {
     }
   } : {},
   layers: [
-    { id: "local-background", type: "background", paint: { "background-color": "#e5ede8" } },
+    { id: "local-background", type: "background", paint: { "background-color": "#e7eff8" } },
     ...(tiles.enabled ? [{ id: "osm-tiles", type: "raster" as const, source: "osm", paint: { "raster-opacity": .94, "raster-fade-duration": 0 } }] : [])
   ]
   };
 }
 
 const LAYERS = [
-  { id: "EV_STATION", label: "EV Stations", labelTh: "สถานีชาร์จ EV", color: "#087a5b", icon: Zap, default: true },
+  { id: "EV_STATION", label: "EV Stations", labelTh: "สถานีชาร์จ EV", color: "#0b84f3", icon: Zap, default: true },
   { id: "COMPETITOR", label: "Competitors", labelTh: "สถานีคู่แข่ง", color: "#d84f45", icon: Building2, default: true },
   { id: "GAS_STATION", label: "Gas Stations", labelTh: "ปั๊มน้ำมัน", color: "#c68100", icon: Fuel, default: true },
-  { id: "POI", label: "Points of Interest", labelTh: "สถานที่สำคัญ", color: "#3478c7", icon: MapPin, default: true },
+  { id: "POI", label: "Points of Interest", labelTh: "สถานที่สำคัญ", color: "#6d5ce7", icon: MapPin, default: true },
   { id: "FLOOD", label: "Flood Risk", labelTh: "พื้นที่เสี่ยงน้ำท่วม", color: "#6658c7", icon: Waves, default: false },
   { id: "PARTNER_BRANCH", label: "Partner Branches", labelTh: "สาขาพันธมิตร", color: "#8850ad", icon: Handshake, default: false },
-  { id: "OPPORTUNITY", label: "Opportunities", labelTh: "พื้นที่โอกาส", color: "#086b51", icon: Target, default: true }
+  { id: "OPPORTUNITY", label: "Opportunities", labelTh: "พื้นที่โอกาส", color: "#00a9c9", icon: Target, default: true }
 ] as const;
 
 const ENTITY_ICON_BY_KIND = {
@@ -120,9 +120,9 @@ function ensure3DTerrain(map: MapLibreMap) {
       source: "mapterhorn-terrain",
       paint: {
         "hillshade-exaggeration": 0.28,
-        "hillshade-shadow-color": "#29443a",
-        "hillshade-highlight-color": "#f4fbf7",
-        "hillshade-accent-color": "#78988c"
+        "hillshade-shadow-color": "#1b3552",
+        "hillshade-highlight-color": "#eef8ff",
+        "hillshade-accent-color": "#6f91b0"
       }
     }, firstOverlayLayer);
   } else {
@@ -149,7 +149,7 @@ function ensure3DBuildings(map: MapLibreMap) {
       layout: { visibility: "none" },
       filter: ["!=", ["get", "hide_3d"], true],
       paint: {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 6], 0, "#b8d6ca", 40, "#4d9e82", 120, "#176c53"],
+        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 6], 0, "#b9d9f2", 40, "#4b93c8", 120, "#175b91"],
         "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.2, ["coalesce", ["get", "render_height"], 6]],
         "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
         "fill-extrusion-opacity": 0.94,
@@ -380,11 +380,11 @@ export function MapExplorer() {
       map.addLayer({ id: "entity-points", type: "symbol", source: "entities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": ["match", ["get", "kind"], "EV_STATION", "marker-ev", "COMPETITOR", "marker-competitor", "GAS_STATION", "marker-gas", "POI", "marker-poi", "marker-partner"], "icon-size": zoomScaledValue(MAP_MARKER_STYLE.entityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
 
       map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude, 3) });
-      map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#087a5b", "fill-opacity": .11 } });
+      map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#006fdd", "fill-opacity": .11 } });
       map.addLayer({ id: "analysis-risk-fill", type: "fill", source: "analysis-radius", layout: { visibility: "none" }, paint: { "fill-color": "#7a71d8", "fill-opacity": .22 } });
-      map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#087a5b", "line-width": 2.5, "line-dasharray": [2, 2] } });
+      map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#006fdd", "line-width": 2.5, "line-dasharray": [2, 2] } });
       map.addSource("selected-point", { type: "geojson", data: pointFeature(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude) });
-      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#087a5b", "circle-radius": zoomScaledValue(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
+      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#006fdd", "circle-radius": zoomScaledValue(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
       map.addLayer({ id: "selected-point", type: "symbol", source: "selected-point", layout: { "icon-image": "marker-selected", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.selectedIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
 
       map.on("click", "entity-points", (event) => {
