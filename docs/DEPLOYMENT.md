@@ -34,6 +34,17 @@ npm run build:vercel
 5. ตั้ง optional public configuration ใน dashboard เท่านั้น
 6. ห้ามใส่ production secret ในตัวแปร `NEXT_PUBLIC_*`
 
+#### Git author ที่ Vercel ยอมรับ
+
+Vercel อาจบล็อก deployment ก่อนเริ่ม build หากอีเมลผู้เขียน commit ไม่เชื่อมกับบัญชี GitHub ที่มีสิทธิ์ในโปรเจกต์ ตรวจด้วย `git show --no-patch --format="%an <%ae>" HEAD` และตั้งค่าเฉพาะ repository ด้วยอีเมล GitHub ที่ยืนยันแล้ว:
+
+```bash
+git config --local user.name "Your GitHub Name"
+git config --local user.email "your-verified-github-email@example.com"
+```
+
+อย่าใช้ placeholder เช่น `sites@openai.local` สำหรับ commit ที่ต้อง trigger Vercel Git deployment หลังแก้ค่าแล้วต้องสร้าง commit ใหม่และ push; การแก้ configuration เพียงอย่างเดียวไม่เปลี่ยนผู้เขียนของ commit เก่า
+
 ### Sites/Vinext
 
 `.openai/hosting.json` เก็บเฉพาะ project ID และ logical binding ที่อนุญาต Build artifact ต้องมี `dist/server/index.js` และ hosting metadata การเผยแพร่ต้องอ้าง commit ที่ตรงกับ artifact ที่ตรวจแล้ว ห้ามแพ็ก source tree แทน build output
@@ -81,6 +92,8 @@ Run clean install, typecheck, lint, unit tests, E2E, and both builds. Confirm th
 ### Vercel
 
 Import the repository, select Node 22.13+, and use the configured Next.js build. Set a trusted absolute application origin when metadata or redirects require one. Never expose a production secret through `NEXT_PUBLIC_*`.
+
+Vercel can block a deployment before the build starts when the commit author email is not associated with a GitHub account that has project access. Check the current author with `git show --no-patch --format="%an <%ae>" HEAD`, set repository-local `user.name` and a verified GitHub `user.email`, then create and push a new commit. Changing Git configuration alone does not rewrite an existing commit. Do not use placeholder identities such as `sites@openai.local` for commits intended to trigger Vercel Git deployments.
 
 ### Sites/Vinext
 

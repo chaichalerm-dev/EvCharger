@@ -4,6 +4,18 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.2 — 2026-08-31
+
+### ภาษาไทย
+
+- แก้สาเหตุ Vercel บล็อก deployment ก่อน build โดยเปลี่ยน Git author ของ commit ใหม่จาก placeholder เป็นบัญชี GitHub ที่ยืนยันแล้ว
+- เพิ่มคู่มือตรวจและแก้ `Deployment Blocked` ที่ไม่มี build log พร้อมย้ำว่าต้องสร้าง commit ใหม่หลังเปลี่ยน Git configuration
+
+### English
+
+- Resolved Vercel's pre-build deployment block by using a GitHub-verified author identity for the new commit instead of a placeholder email.
+- Documented how to diagnose and recover from `Deployment Blocked` with no build log, including the requirement to create a new commit after changing Git configuration.
+
 ## 0.9.1 — 2026-08-31
 
 ### ภาษาไทย

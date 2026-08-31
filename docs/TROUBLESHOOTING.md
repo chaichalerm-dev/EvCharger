@@ -45,6 +45,10 @@
 - ตรวจ TypeScript/lint error แรกก่อน warning ขนาด chunk
 - ลบ/แก้เฉพาะ generated cache ที่ปลอดภัย ห้าม reset งานผู้ใช้
 
+### Vercel แสดง Deployment Blocked โดยยังไม่มี build log
+
+หากหน้ารายละเอียดระบุว่า commit author email ไม่ถูกต้อง แปลว่า Vercel บล็อกก่อนเรียก `npm run build:vercel` จึงไม่ใช่ TypeScript หรือ Next.js build error ให้ตรวจผู้เขียน commit ปัจจุบัน ตั้ง `git config --local user.email` เป็นอีเมลที่ยืนยันกับ GitHub แล้วสร้าง commit ใหม่และ push ห้ามแก้ด้วยการใส่ secret หรือปิด security control
+
 ---
 
 ## English
@@ -72,3 +76,5 @@ Refresh intentionally clears memory-only tokens. Do not move secrets to localSto
 ### Preferences and builds
 
 Preferences require browser storage. First-run defaults are Thai and light. Use Node 22.13+, the Vercel build for Vercel, and the Vinext build for Sites. Fix the first real error before non-blocking chunk warnings and preserve user work.
+
+If Vercel reports **Deployment Blocked** with no build log and identifies an invalid commit author email, the build never started. Configure a repository-local email verified by GitHub, create a new commit, and push it. This is an identity/configuration issue, not a Next.js compilation failure.
