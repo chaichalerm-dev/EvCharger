@@ -18,6 +18,8 @@
 
 ตรวจว่า source `selected-point` และ `analysis-radius` ถูกสร้างหลัง `style.load` แล้ว การอัปเดต GeoJSON ห้ามรอ `map.isStyleLoaded()` เพราะ raster tile ที่ยังโหลดอาจทำให้ค่านี้เป็น false ทั้งที่ source พร้อมเขียนแล้ว ให้ตรวจ source ด้วย `map.getSource()` โดยตรงและแยกความพร้อมของ layer ออกจากความพร้อมของข้อมูล tile ภายนอก
 
+หมุดตำแหน่งหลักแสดงด้วย native MapLibre marker ที่ผูกกับ longitude/latitude เหนือ WebGL canvas จึงไม่ควรถูกชั้น 3D บัง ไม่ขยายตามการซูม และต้องเลื่อนออกจากหน้าจอเมื่อ pan ออกจากพิกัดนั้น
+
 ### ค้นหาไม่พบหรือ Nominatim ล้มเหลว
 
 ใช้ชื่อสถานที่/จังหวัดที่ชัดเจน รอแล้วลองใหม่ตาม public usage policy หรือคลิก map โดยตรง ตรวจว่า search จำกัด `TH` และ endpoint ใช้ HTTPS
@@ -72,6 +74,8 @@ Verify capped zoom expressions, clustering, and viewport alignment. Avoid unboun
 ### A selected coordinate has no visible pin or radius
 
 Confirm that `selected-point` and `analysis-radius` are created after `style.load`. Do not gate GeoJSON updates on `map.isStyleLoaded()`: pending raster tiles can keep it false even when the custom sources are writable. Check the required source with `map.getSource()` and treat custom-layer readiness separately from external tile readiness.
+
+The primary selected pin is also rendered as a native MapLibre marker anchored to longitude/latitude above the WebGL canvas. It should remain above 3D layers, retain a fixed screen size while zooming, and leave the viewport when the map is panned away from its coordinate.
 
 ### Search/provider/company issues
 

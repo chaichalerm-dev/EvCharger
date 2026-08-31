@@ -8,12 +8,14 @@ Dates use ISO format and entries describe user and technical impact.
 
 ### ภาษาไทย
 
+- เพิ่มหมุด MapLibre แบบยึดกับพิกัดจริงเหนือ canvas เพื่อให้เห็นชัดใน 2D/3D และมีขนาดคงที่เมื่อซูม
 - แก้หมุดและวงรัศมีบน Vercel ไม่อัปเดตหลังเลือกพิกัด เพราะเดิมรอ `map.isStyleLoaded()` ซึ่งอาจเป็น false ระหว่าง raster tile ยังโหลด
 - เปลี่ยนการสร้าง custom source/layer ไปใช้ `style.load` และอัปเดต GeoJSON source โดยตรวจ source ที่ต้องใช้โดยตรง
 - เปิดปุ่มควบคุมแผนที่หลัง layer ของหมุดพร้อมจริง และเพิ่ม test ครอบคลุมการอัปเดตหมุดแม้ tile ภายนอกยังไม่พร้อม
 
 ### English
 
+- Added a coordinate-anchored native MapLibre marker above the canvas for reliable 2D/3D visibility and fixed on-screen size while zooming.
 - Fixed selected pins and radius polygons failing to update on Vercel because updates were gated by `map.isStyleLoaded()` while raster tiles were still loading.
 - Initialized custom sources and layers on `style.load` and now update writable GeoJSON sources directly.
 - Enabled map actions only after the selected-point layer is ready and added coverage for selection updates while external tiles remain pending.

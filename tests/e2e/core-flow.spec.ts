@@ -15,8 +15,12 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
   await page.getByRole("button", { name: "5 km", exact: true }).click();
   await expect(page.locator(".result-panel")).toContainText("Asok, Bangkok, Thailand");
   await expect(page.locator(".result-panel")).toContainText("600");
+  const selectedMarker = page.locator(".selected-map-marker");
+  await expect(selectedMarker).toBeVisible();
+  await expect(selectedMarker).toHaveAttribute("data-latitude", "13.73660");
   await page.locator(".maplibregl-canvas").click({ position: { x: 100, y: 180 } });
   await expect(page.locator(".result-heading")).toContainText("READY TO ANALYZE");
+  await expect(selectedMarker).not.toHaveAttribute("data-latitude", "13.73660");
 });
 
 test("language and theme controls remain interactive", async ({ page }) => {

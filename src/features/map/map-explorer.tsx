@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleSpecification } from "maplibre-gl";
+import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, ChevronDown, CircleDot, Database, Focus, Fuel,
   Gauge, Handshake, Layers3, LocateFixed, Map as MapIcon, MapPin, Mountain, RefreshCw, Search, Sparkles, Target, Thermometer, Users, Waves, Wind, Zap
@@ -145,6 +145,7 @@ function ensure3DBuildings(map: MapLibreMap) {
 export function MapExplorer() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
+  const selectedMarkerRef = useRef<MapLibreMarker | null>(null);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
   const locationRef = useRef<Candidate>(INITIAL_LOCATION);
   const [radius, setRadius] = useState<number>(3);
@@ -304,6 +305,23 @@ export function MapExplorer() {
       canvasContextAttributes: { antialias: true }
     });
     mapRef.current = map;
+    const selectedLocation = locationRef.current;
+    const selectedMarker = new maplibregl.Marker({
+      color: "#087ff0",
+      scale: 0.82,
+      anchor: "bottom",
+      pitchAlignment: "viewport",
+      rotationAlignment: "viewport",
+    })
+      .setLngLat([selectedLocation.longitude, selectedLocation.latitude])
+      .addTo(map);
+    const selectedMarkerElement = selectedMarker.getElement();
+    selectedMarkerElement.classList.add("selected-map-marker");
+    selectedMarkerElement.dataset.latitude = selectedLocation.latitude.toFixed(5);
+    selectedMarkerElement.dataset.longitude = selectedLocation.longitude.toFixed(5);
+    selectedMarkerElement.setAttribute("role", "img");
+    selectedMarkerElement.setAttribute("aria-label", languageRef.current === "th" ? `ตำแหน่งที่เลือก ${selectedLocation.latitude.toFixed(5)}, ${selectedLocation.longitude.toFixed(5)}` : `Selected location ${selectedLocation.latitude.toFixed(5)}, ${selectedLocation.longitude.toFixed(5)}`);
+    selectedMarkerRef.current = selectedMarker;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
@@ -383,6 +401,8 @@ export function MapExplorer() {
     });
     return () => {
       cancelled = true;
+      selectedMarkerRef.current?.remove();
+      selectedMarkerRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -392,7 +412,14 @@ export function MapExplorer() {
     const map = mapRef.current;
     if (!map) return;
     syncMapSelectionSources(map, location, radius);
-  }, [location, radius]);
+    selectedMarkerRef.current?.setLngLat([location.longitude, location.latitude]);
+    const markerElement = selectedMarkerRef.current?.getElement();
+    if (markerElement) {
+      markerElement.dataset.latitude = location.latitude.toFixed(5);
+      markerElement.dataset.longitude = location.longitude.toFixed(5);
+      markerElement.setAttribute("aria-label", language === "th" ? `ตำแหน่งที่เลือก ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}` : `Selected location ${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`);
+    }
+  }, [language, location, radius]);
 
   useEffect(() => {
     const map = mapRef.current;
