@@ -2,9 +2,18 @@
 
 ## ภาษาไทย
 
+### หมุดเลือกพื้นที่และการเคลื่อนกล้อง
+
+- หมุดวิเคราะห์ยึดกับพิกัดภูมิศาสตร์ของ MapLibre จึงเคลื่อนบนจอเฉพาะเมื่อผู้ใช้แพนหรือซูมแผนที่ และจะยังอยู่เหนือพิกัดเดิมเสมอ
+- การคลิกบนแผนที่จะวางหมุดตรงตำแหน่งที่คลิกโดยไม่บังคับเลื่อนกล้องหรือดึงหมุดเข้ากลางจอ
+- การเลือกผลค้นหาจะเลื่อนกล้องไปยังสถานที่นั้น เพราะผลค้นหาอาจอยู่นอกมุมมองปัจจุบัน
+- ปุ่มกลับไปจุดที่เลือกเป็นคำสั่งที่ผู้ใช้กดเองเมื่อต้องการจัดกล้องกลับมาที่หมุด
+- ระบบมีจุดวิเคราะห์ที่กำลังใช้งานหนึ่งจุด การเลือกจุดใหม่จะแทนจุดเดิม ส่วนการเก็บหลายพื้นที่เพื่อเทียบกันใช้ขั้นตอน Site Comparison
+- ระหว่างเริ่มแผนที่ใช้ background layer ภายใน MapLibre โดยตรง ไม่มี overlay หมุดหรือวงรัศมีแบบ HTML ที่ตรึงกับกึ่งกลางหน้าจอ
+
 ### Basemap และ fallback
 
-MapLibre GL JS render OpenStreetMap raster tiles โดยไม่ต้องใช้ paid token แกนหลัก หาก tile ภายนอกไม่พร้อม local fallback context ช่วยให้ผู้ใช้ยังเห็นพื้นที่เลือกและรัศมีโดยไม่กลายเป็นหน้าว่าง Fallback ซ่อนหลัง online tiles โหลดสำเร็จเพื่อไม่ให้เกิดเส้นซ้อน
+MapLibre GL JS render OpenStreetMap raster tiles โดยไม่ต้องใช้ paid token แกนหลัก ระหว่างเริ่มต้น MapLibre แสดง background layer ภายใน style ของตนเอง จึงไม่มี overlay แผนที่ หมุด หรือวงรัศมีแบบ HTML ซ้อนทับ canvas หาก tile ภายนอกไม่พร้อม ระบบแสดงคำเตือนตามจริงและยังไม่อ้างว่ามี basemap แบบ offline
 
 ### ขอบเขตประเทศไทย
 
@@ -53,13 +62,15 @@ Authoritative parcel/flood/traffic contracts, polygon drawing ที่ persist,
 
 ### Basemap and fallback
 
-MapLibre renders OpenStreetMap raster tiles without a paid core token. If external tiles fail, local context preserves point and radius interaction rather than showing a blank surface. The fallback hides after online tiles load to avoid duplicate lines.
+MapLibre renders OpenStreetMap raster tiles without a paid core token. During startup, MapLibre renders its own style background layer; no HTML map, marker, or radius overlay sits above the canvas. If external tiles fail, the UI reports that condition honestly and does not claim an offline basemap.
 
 ### Thailand scope
 
 Nominatim search uses country code `TH`, and the camera is constrained by a configurable navigation envelope. Province names are not embedded in business logic. The visible Thailand badge was removed to reduce clutter; the constraint remains active.
 
 ### Selection and analysis
+
+The active analysis pin is anchored to a MapLibre geographic coordinate. A direct map click places the pin exactly where clicked without recentering the viewport; selecting a search result recenters because it may be outside the current view. The explicit recenter control returns the camera to the selected point. One active analysis point is maintained at a time, while multi-site decisions belong in Site Comparison. Startup rendering uses MapLibre's own background layer and never adds a screen-fixed HTML pin, radius, or geographic overlay.
 
 Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
 

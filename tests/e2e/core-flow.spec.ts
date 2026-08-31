@@ -56,6 +56,8 @@ test("3D and public location context controls remain usable", async ({ page }) =
 
   await page.goto("/map");
   await expect(page.locator(".map-canvas")).toHaveAttribute("data-country", "TH");
+  await expect(page.locator(".fallback-map-visual")).toHaveCount(0, { timeout: 15000 });
+  await expect(page.locator(".dom-selected")).toHaveCount(0);
   await expect(page.locator(".map-country-badge")).toHaveCount(0);
   await expect(page.locator(".map-instruction")).toHaveCount(0);
   await expect(page.locator(".layer-icon svg")).toHaveCount(7);

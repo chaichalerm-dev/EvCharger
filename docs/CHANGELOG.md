@@ -4,6 +4,22 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.1 — 2026-08-31
+
+### ภาษาไทย
+
+- แก้หมุดวิเคราะห์ให้ยึดกับพิกัดจริงบน MapLibre และไม่ดูเหมือนลอยตามกึ่งกลางหน้าจอ
+- การคลิกแผนที่จะวางหมุดตรงตำแหน่งที่คลิกโดยไม่เลื่อนกล้องอัตโนมัติ ส่วนการเลือกผลค้นหายังคงพากล้องไปยังสถานที่ที่ค้นพบ
+- นำ fallback overlay รวมทั้งหมุด วงรัศมี และสัญลักษณ์จำลองแบบ HTML ที่ตรึงกับหน้าจอออกทั้งหมด โดยใช้ background layer ของ MapLibre ระหว่างโหลด
+- เพิ่มการทดสอบกฎการเคลื่อนกล้องและตรวจว่า fallback ไม่มีหมุดจำลอง
+
+### English
+
+- Anchored the active analysis marker exclusively to its MapLibre geographic coordinate so it no longer appears fixed to the viewport center.
+- Direct map clicks now keep the camera stable and place the pin exactly where clicked; search-result selection still recenters to reveal an off-screen result.
+- Removed the entire startup fallback overlay, including screen-fixed HTML marker, radius, and entity simulations; MapLibre's own background layer now handles startup rendering.
+- Added automated coverage for camera-selection rules and the absence of fallback marker simulations.
+
 ## 0.9.0 — 2026-08-31
 
 ### ภาษาไทย

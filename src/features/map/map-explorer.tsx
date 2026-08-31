@@ -18,6 +18,7 @@ import { recommendSite } from "@/src/services/recommendation-engine";
 import { calculateSiteScore } from "@/src/services/scoring-engine";
 import { useApp } from "@/src/store/app-context";
 import { registerMapMarkerImages } from "./map-marker-icons";
+import { shouldRecenterForSelection, type MapSelectionOrigin } from "./map-selection";
 import { ScoreBar } from "@/src/components/ui/score-bar";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
@@ -51,14 +52,6 @@ const LAYERS = [
   { id: "PARTNER_BRANCH", label: "Partner Branches", labelTh: "สาขาพันธมิตร", color: "#8850ad", icon: Handshake, default: false },
   { id: "OPPORTUNITY", label: "Opportunities", labelTh: "พื้นที่โอกาส", color: "#00a9c9", icon: Target, default: true }
 ] as const;
-
-const ENTITY_ICON_BY_KIND = {
-  EV_STATION: Zap,
-  COMPETITOR: Building2,
-  GAS_STATION: Fuel,
-  POI: MapPin,
-  PARTNER_BRANCH: Handshake
-} as const;
 
 type Candidate = { id: string; label: string; latitude: number; longitude: number; source: "INITIAL" | "OSM" | "MAP" };
 
@@ -166,14 +159,15 @@ export function MapExplorer() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
+  const locationRef = useRef<Candidate>(INITIAL_LOCATION);
   const [radius, setRadius] = useState<number>(3);
+  const radiusRef = useRef<number>(3);
   const [area, setArea] = useState<string>("");
   const [query, setQuery] = useState("");
   const [remoteResults, setRemoteResults] = useState<Candidate[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchMessage, setSearchMessage] = useState("");
   const [tileWarning, setTileWarning] = useState(false);
-  const [onlineTilesReady, setOnlineTilesReady] = useState(false);
   const [interactive, setInteractive] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [is3D, setIs3D] = useState(false);
@@ -205,38 +199,32 @@ export function MapExplorer() {
   }, publicContext), [area, location, publicContext, radius]);
   const score = useMemo(() => calculateSiteScore(analysis.site.factors), [analysis.site.factors]);
   const recommendation = useMemo(() => recommendSite(analysis.site, score), [analysis.site, score]);
-  const visualEntities = useMemo(() => analysis.nearby.map((entity) => {
-    const latitudeKm = (entity.latitude - location.latitude) * 111;
-    const longitudeKm = (entity.longitude - location.longitude) * 111 * Math.cos(location.latitude * Math.PI / 180);
-    const extent = Math.max(1.2, radius * 1.15);
-    return {
-      ...entity,
-      left: Math.max(7, Math.min(93, 50 + longitudeKm / extent * 44)),
-      top: Math.max(7, Math.min(93, 50 - latitudeKm / extent * 44))
-    };
-  }), [analysis.nearby, location.latitude, location.longitude, radius]);
   const publicCounts = useMemo(() => ({
     evStations: publicContext?.osmEntities.filter((entity) => entity.kind === "EV_STATION").length ?? 0,
     gasStations: publicContext?.osmEntities.filter((entity) => entity.kind === "GAS_STATION").length ?? 0,
     pois: publicContext?.osmEntities.filter((entity) => entity.kind === "POI").length ?? 0
   }), [publicContext]);
 
-  const chooseLocation = (candidate: Candidate) => {
+  const chooseLocation = (candidate: Candidate, origin: MapSelectionOrigin = "SEARCH") => {
+    locationRef.current = candidate;
     setLocation(candidate);
     setPublicContext(null);
     setQuery("");
     setRemoteResults([]);
     setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — เลือกรัศมี แล้วกดวิเคราะห์พื้นที่นี้" : "Location selected — choose a radius, then analyze this area");
-    mapRef.current?.easeTo({
-      center: [candidate.longitude, candidate.latitude],
-      zoom: is3DRef.current ? 16.5 : 13.5,
-      pitch: is3DRef.current ? 65 : 0,
-      bearing: is3DRef.current ? -24 : 0,
-      duration: 650
-    });
+    if (shouldRecenterForSelection(origin)) {
+      mapRef.current?.easeTo({
+        center: [candidate.longitude, candidate.latitude],
+        zoom: is3DRef.current ? 16.5 : 13.5,
+        pitch: is3DRef.current ? 65 : 0,
+        bearing: is3DRef.current ? -24 : 0,
+        duration: 650
+      });
+    }
   };
 
   const changeRadius = (value: number) => {
+    radiusRef.current = value;
     setRadius(value);
     setPublicContext(null);
   };
@@ -349,7 +337,6 @@ export function MapExplorer() {
     });
     map.on("idle", () => {
       if (map.getSource("osm") && map.isSourceLoaded("osm") && map.areTilesLoaded()) {
-        setOnlineTilesReady(true);
         setTileWarning(false);
       }
       if (is3DRef.current) {
@@ -379,11 +366,13 @@ export function MapExplorer() {
       map.addLayer({ id: "entity-clusters", type: "symbol", source: "entities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.clusterIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": zoomScaledValue(MAP_MARKER_STYLE.clusterTextSize), "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
       map.addLayer({ id: "entity-points", type: "symbol", source: "entities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": ["match", ["get", "kind"], "EV_STATION", "marker-ev", "COMPETITOR", "marker-competitor", "GAS_STATION", "marker-gas", "POI", "marker-poi", "marker-partner"], "icon-size": zoomScaledValue(MAP_MARKER_STYLE.entityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
 
-      map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude, 3) });
+      const selectedLocation = locationRef.current;
+      const selectedRadius = radiusRef.current;
+      map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(selectedLocation.longitude, selectedLocation.latitude, selectedRadius) });
       map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#006fdd", "fill-opacity": .11 } });
       map.addLayer({ id: "analysis-risk-fill", type: "fill", source: "analysis-radius", layout: { visibility: "none" }, paint: { "fill-color": "#7a71d8", "fill-opacity": .22 } });
       map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#006fdd", "line-width": 2.5, "line-dasharray": [2, 2] } });
-      map.addSource("selected-point", { type: "geojson", data: pointFeature(INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude) });
+      map.addSource("selected-point", { type: "geojson", data: pointFeature(selectedLocation.longitude, selectedLocation.latitude) });
       map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#006fdd", "circle-radius": zoomScaledValue(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
       map.addLayer({ id: "selected-point", type: "symbol", source: "selected-point", layout: { "icon-image": "marker-selected", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.selectedIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
 
@@ -402,7 +391,7 @@ export function MapExplorer() {
           latitude: event.lngLat.lat,
           longitude: event.lngLat.lng,
           source: "MAP"
-        });
+        }, "MAP");
       });
       map.on("mouseenter", "opportunity-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "opportunity-points", () => { map.getCanvas().style.cursor = "crosshair"; });
@@ -501,12 +490,6 @@ export function MapExplorer() {
 
       <div className="map-canvas-wrap">
         <div ref={container} className="map-canvas" data-country={THAILAND_MAP_VIEW.countryCode} aria-label={language === "th" ? "แผนที่เลือกพื้นที่สำหรับวิเคราะห์" : "Interactive map for selecting an analysis location"} />
-        <div className={`fallback-map-visual ${onlineTilesReady ? "online" : ""}`} aria-hidden="true">
-          <span className="dom-place-label label-a">{analysis.site.district}</span><span className="dom-place-label label-b">{analysis.site.province}</span>
-          <i className="dom-radius" style={{ width: `${Math.min(82, 24 + radius * 6)}%`, aspectRatio: "1" }} />
-          <i className="dom-selected"><span /></i>
-          {visualEntities.map((entity) => { const EntityIcon = ENTITY_ICON_BY_KIND[entity.kind]; return <span key={entity.id} title={entity.name} className={`dom-entity entity-${entity.kind.toLowerCase()}`} style={{ left: `${entity.left}%`, top: `${entity.top}%` }}><EntityIcon /></span>; })}
-        </div>
         <div className={`map-symbol-legend ${legendOpen ? "open" : "collapsed"}`} aria-label={language === "th" ? "คำอธิบายสัญลักษณ์บนแผนที่" : "Map symbol legend"}>
           <button className="legend-toggle" type="button" onClick={() => setLegendOpen((current) => !current)} aria-expanded={legendOpen}>
             <Layers3 /><span>{language === "th" ? "สัญลักษณ์" : "Symbols"}</span><small>{Object.values(layerState).filter(Boolean).length}/{LAYERS.length}</small><ChevronDown aria-hidden="true" />
