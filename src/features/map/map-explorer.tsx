@@ -193,6 +193,7 @@ export function MapExplorer() {
   const renderEntityMarkersRef = useRef<(() => void) | null>(null);
   const loadBuildingFootprintsRef = useRef<((candidate: Candidate) => Promise<void>) | null>(null);
   const buildingRequestSequenceRef = useRef(0);
+  const threeDBuildingCountRef = useRef(0);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
   const locationRef = useRef<Candidate>(INITIAL_LOCATION);
   const [radius, setRadius] = useState<number>(3);
@@ -254,6 +255,7 @@ export function MapExplorer() {
     if (!map || !source || !is3DRef.current) return;
     const requestSequence = ++buildingRequestSequenceRef.current;
     source.setData({ type: "FeatureCollection", features: [] });
+    threeDBuildingCountRef.current = 0;
     setThreeDBuildingCount(0);
     setThreeDStatus("LOADING");
     if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", "visible");
@@ -261,12 +263,20 @@ export function MapExplorer() {
       const collection = await buildingProvider.nearby({ latitude: candidate.latitude, longitude: candidate.longitude });
       if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
       source.setData(collection);
+      threeDBuildingCountRef.current = collection.features.length;
       setThreeDBuildingCount(collection.features.length);
       if (map.getLayer("osm-buildings-3d")) map.setLayoutProperty("osm-buildings-3d", "visibility", collection.features.length ? "visible" : "none");
       if (collection.features.length) {
+        // MapLibre fill extrusions can be depth-occluded by raster terrain because
+        // GeoJSON building bases are expressed from ground level (0 m). For dense
+        // urban analysis, prefer visible building massing and keep terrain as the
+        // fallback for locations where no building geometry is available.
+        map.setTerrain(null);
+        if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
         if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", "none");
         setThreeDStatus("READY");
       } else {
+        try { ensure3DTerrain(map); } catch (error) { console.warn("Unable to restore Mapterhorn terrain", error); }
         setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     } catch (error) {
@@ -339,6 +349,7 @@ export function MapExplorer() {
         void loadBuildingFootprints(locationRef.current);
       } else {
         buildingRequestSequenceRef.current += 1;
+        threeDBuildingCountRef.current = 0;
         setThreeDBuildingCount(0);
         map.setTerrain(null);
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
@@ -504,13 +515,13 @@ export function MapExplorer() {
       if (is3DRef.current) {
         const featureCount = rendered3DBuildingCount(map);
         const terrainConfigured = Boolean(map.getTerrain()?.source);
-        setThreeDStatus(featureCount > 0 ? "READY" : terrainConfigured ? "TERRAIN_ONLY" : "UNAVAILABLE");
+        setThreeDStatus(threeDBuildingCountRef.current > 0 || featureCount > 0 ? "READY" : terrainConfigured ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     });
     map.on("sourcedata", (event) => {
       if (["openfreemap-buildings", "osm-building-footprints"].includes(event.sourceId) && event.isSourceLoaded) {
         const featureCount = rendered3DBuildingCount(map);
-        setThreeDStatus(featureCount > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+        setThreeDStatus(threeDBuildingCountRef.current > 0 || featureCount > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     });
     map.on("style.load", () => {
