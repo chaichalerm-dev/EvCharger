@@ -10,6 +10,7 @@
 - ปุ่มกลับไปจุดที่เลือกเป็นคำสั่งที่ผู้ใช้กดเองเมื่อต้องการจัดกล้องกลับมาที่หมุด
 - ระบบมีจุดวิเคราะห์ที่กำลังใช้งานหนึ่งจุด การเลือกจุดใหม่จะแทนจุดเดิม ส่วนการเก็บหลายพื้นที่เพื่อเทียบกันใช้ขั้นตอน Site Comparison
 - ระหว่างเริ่มแผนที่ใช้ background layer ภายใน MapLibre โดยตรง ไม่มี overlay หมุดหรือวงรัศมีแบบ HTML ที่ตรึงกับกึ่งกลางหน้าจอ
+- source และ layer ของหมุดเริ่มทำงานเมื่อ `style.load` โดยไม่รอ raster tile ภายนอกทั้งหมด ส่วนการเปลี่ยนพิกัดจะตรวจว่า GeoJSON source พร้อมโดยตรง ไม่ใช้ `isStyleLoaded()` ซึ่งอาจเป็น false ชั่วคราวระหว่างโหลด tile
 
 ### Basemap และ fallback
 
@@ -71,6 +72,8 @@ Nominatim search uses country code `TH`, and the camera is constrained by a conf
 ### Selection and analysis
 
 The active analysis pin is anchored to a MapLibre geographic coordinate. A direct map click places the pin exactly where clicked without recentering the viewport; selecting a search result recenters because it may be outside the current view. The explicit recenter control returns the camera to the selected point. One active analysis point is maintained at a time, while multi-site decisions belong in Site Comparison. Startup rendering uses MapLibre's own background layer and never adds a screen-fixed HTML pin, radius, or geographic overlay.
+
+Selection sources and layers initialize on `style.load` without waiting for every external raster tile. Coordinate changes update writable GeoJSON sources directly rather than gating on `isStyleLoaded()`, which can be temporarily false during ordinary tile loading.
 
 Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
 

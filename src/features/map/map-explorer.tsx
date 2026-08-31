@@ -18,7 +18,13 @@ import { recommendSite } from "@/src/services/recommendation-engine";
 import { calculateSiteScore } from "@/src/services/scoring-engine";
 import { useApp } from "@/src/store/app-context";
 import { registerMapMarkerImages } from "./map-marker-icons";
-import { shouldRecenterForSelection, type MapSelectionOrigin } from "./map-selection";
+import {
+  circlePolygon,
+  pointFeature,
+  shouldRecenterForSelection,
+  syncMapSelectionSources,
+  type MapSelectionOrigin,
+} from "./map-selection";
 import { ScoreBar } from "@/src/components/ui/score-bar";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
@@ -54,25 +60,6 @@ const LAYERS = [
 ] as const;
 
 type Candidate = { id: string; label: string; latitude: number; longitude: number; source: "INITIAL" | "OSM" | "MAP" };
-
-function circlePolygon(longitude: number, latitude: number, radiusKm: number) {
-  const coordinates: number[][] = [];
-  const earth = 6371;
-  for (let i = 0; i <= 64; i++) {
-    const bearing = i * 360 / 64 * Math.PI / 180;
-    const latitudeRad = latitude * Math.PI / 180;
-    const longitudeRad = longitude * Math.PI / 180;
-    const distance = radiusKm / earth;
-    const latitude2 = Math.asin(Math.sin(latitudeRad) * Math.cos(distance) + Math.cos(latitudeRad) * Math.sin(distance) * Math.cos(bearing));
-    const longitude2 = longitudeRad + Math.atan2(Math.sin(bearing) * Math.sin(distance) * Math.cos(latitudeRad), Math.cos(distance) - Math.sin(latitudeRad) * Math.sin(latitude2));
-    coordinates.push([longitude2 * 180 / Math.PI, latitude2 * 180 / Math.PI]);
-  }
-  return { type: "Feature" as const, properties: {}, geometry: { type: "Polygon" as const, coordinates: [coordinates] } };
-}
-
-function pointFeature(longitude: number, latitude: number) {
-  return { type: "Feature" as const, properties: {}, geometry: { type: "Point" as const, coordinates: [longitude, latitude] } };
-}
 
 function entityCollection(entities: MapEntity[]) {
   return {
@@ -249,7 +236,7 @@ export function MapExplorer() {
       return;
     }
     const applyMode = () => {
-      if (!map.isStyleLoaded()) return false;
+      if (!map.getLayer("selected-point")) return false;
       if (next) {
         let terrainEnabled = false;
         let buildingsEnabled = false;
@@ -317,14 +304,6 @@ export function MapExplorer() {
       canvasContextAttributes: { antialias: true }
     });
     mapRef.current = map;
-    setMapReady(true);
-    const markMapReady = () => {
-      if (!map.isStyleLoaded()) return;
-      setMapReady(true);
-      map.off("styledata", markMapReady);
-    };
-    map.on("styledata", markMapReady);
-    markMapReady();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
@@ -351,8 +330,11 @@ export function MapExplorer() {
         setThreeDStatus(featureCount > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     });
-    map.on("load", () => {
-      setMapReady(true);
+    map.on("style.load", () => {
+      if (map.getSource("selected-point")) {
+        setMapReady(true);
+        return;
+      }
       registerMapMarkerImages(map);
       const opportunities = {
         type: "FeatureCollection" as const,
@@ -396,6 +378,7 @@ export function MapExplorer() {
       map.on("mouseenter", "opportunity-points", () => { map.getCanvas().style.cursor = "pointer"; });
       map.on("mouseleave", "opportunity-points", () => { map.getCanvas().style.cursor = "crosshair"; });
       map.getCanvas().style.cursor = "crosshair";
+      setMapReady(true);
     });
     });
     return () => {
@@ -407,20 +390,23 @@ export function MapExplorer() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map?.isStyleLoaded()) return;
-    (map.getSource("analysis-radius") as GeoJSONSource | undefined)?.setData(circlePolygon(location.longitude, location.latitude, radius));
-    (map.getSource("selected-point") as GeoJSONSource | undefined)?.setData(pointFeature(location.longitude, location.latitude));
+    if (!map) return;
+    syncMapSelectionSources(map, location, radius);
   }, [location, radius]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map?.isStyleLoaded()) return;
+    if (!map) return;
     const enabledEntityKinds = new Set(Object.entries(layerState).filter(([, enabled]) => enabled).map(([id]) => id));
     const entities = (publicContext?.osmEntities ?? []).filter((entity) => enabledEntityKinds.has(entity.kind));
     (map.getSource("entities") as GeoJSONSource | undefined)?.setData(entityCollection(entities));
     const opportunityVisibility = layerState.OPPORTUNITY ? "visible" : "none";
-    ["opportunity-points", "opportunity-clusters"].forEach((id) => map.setLayoutProperty(id, "visibility", opportunityVisibility));
-    map.setLayoutProperty("analysis-risk-fill", "visibility", layerState.FLOOD ? "visible" : "none");
+    ["opportunity-points", "opportunity-clusters"].forEach((id) => {
+      if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", opportunityVisibility);
+    });
+    if (map.getLayer("analysis-risk-fill")) {
+      map.setLayoutProperty("analysis-risk-fill", "visibility", layerState.FLOOD ? "visible" : "none");
+    }
   }, [layerState, publicContext]);
 
   const t = {

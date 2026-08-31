@@ -14,6 +14,10 @@
 
 ตรวจ `MAP_MARKER_STYLE` และ zoom expression ห้ามใช้ DOM/CSS scale ที่ผูกกับ perspective โดยไม่ cap Cluster ควรทำงาน และ icon ต้อง viewport-aligned
 
+### เลือกพิกัดแล้วไม่เห็นหมุดหรือวงรัศมี
+
+ตรวจว่า source `selected-point` และ `analysis-radius` ถูกสร้างหลัง `style.load` แล้ว การอัปเดต GeoJSON ห้ามรอ `map.isStyleLoaded()` เพราะ raster tile ที่ยังโหลดอาจทำให้ค่านี้เป็น false ทั้งที่ source พร้อมเขียนแล้ว ให้ตรวจ source ด้วย `map.getSource()` โดยตรงและแยกความพร้อมของ layer ออกจากความพร้อมของข้อมูล tile ภายนอก
+
 ### ค้นหาไม่พบหรือ Nominatim ล้มเหลว
 
 ใช้ชื่อสถานที่/จังหวัดที่ชัดเจน รอแล้วลองใหม่ตาม public usage policy หรือคลิก map โดยตรง ตรวจว่า search จำกัด `TH` และ endpoint ใช้ HTTPS
@@ -64,6 +68,10 @@ Zoom close to the selected point and read the status. Bangkok may be genuinely f
 ### Markers cover the map
 
 Verify capped zoom expressions, clustering, and viewport alignment. Avoid unbounded DOM/perspective scaling.
+
+### A selected coordinate has no visible pin or radius
+
+Confirm that `selected-point` and `analysis-radius` are created after `style.load`. Do not gate GeoJSON updates on `map.isStyleLoaded()`: pending raster tiles can keep it false even when the custom sources are writable. Check the required source with `map.getSource()` and treat custom-layer readiness separately from external tile readiness.
 
 ### Search/provider/company issues
 
