@@ -105,6 +105,7 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(threeD).toHaveAttribute("aria-label", "Switch to 2D map");
   await expect(page.locator(".map-3d-status")).toBeVisible();
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", "2");
   await expect(page.locator(".map-3d-status")).toContainText("2 OSM buildings ready");
   await expect(page.locator(".map-3d-status")).toContainText("missing shapes/heights are estimated");
   await page.getByRole("button", { name: "Analyze this area" }).click();
