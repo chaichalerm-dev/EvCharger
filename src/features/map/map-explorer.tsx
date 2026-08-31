@@ -21,7 +21,6 @@ import { registerMapMarkerImages } from "./map-marker-icons";
 import {
   circlePolygon,
   shouldRecenterForSelection,
-  syncMapSelectionSources,
   type MapSelectionOrigin,
 } from "./map-selection";
 import { ScoreBar } from "@/src/components/ui/score-bar";
@@ -80,8 +79,17 @@ function zoomScaledValue(value: { overview: number; normal: number; detail: numb
   ];
 }
 
+function projectRadiusPoints(map: MapLibreMap, location: { longitude: number; latitude: number }, radiusKm: number) {
+  return circlePolygon(location.longitude, location.latitude, radiusKm).geometry.coordinates[0]
+    .map(([longitude, latitude]) => {
+      const point = map.project([longitude, latitude]);
+      return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+    })
+    .join(" ");
+}
+
 function firstMapOverlayLayer(map: MapLibreMap) {
-  return ["opportunity-clusters", "entity-clusters", "analysis-fill"]
+  return ["opportunity-clusters", "entity-clusters"]
     .find((layerId) => map.getLayer(layerId));
 }
 
@@ -145,6 +153,8 @@ export function MapExplorer() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const selectedMarkerRef = useRef<MapLibreMarker | null>(null);
+  const radiusOverlayRef = useRef<SVGSVGElement | null>(null);
+  const radiusOverlayUpdaterRef = useRef<(() => void) | null>(null);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
   const locationRef = useRef<Candidate>(INITIAL_LOCATION);
   const [radius, setRadius] = useState<number>(3);
@@ -236,7 +246,7 @@ export function MapExplorer() {
       return;
     }
     const applyMode = () => {
-      if (!map.getLayer("analysis-line")) return false;
+      if (!map.getLayer("entity-points")) return false;
       if (next) {
         let terrainEnabled = false;
         let buildingsEnabled = false;
@@ -321,6 +331,35 @@ export function MapExplorer() {
     selectedMarkerElement.setAttribute("role", "img");
     selectedMarkerElement.setAttribute("aria-label", languageRef.current === "th" ? `ตำแหน่งที่เลือก ${selectedLocation.latitude.toFixed(5)}, ${selectedLocation.longitude.toFixed(5)}` : `Selected location ${selectedLocation.latitude.toFixed(5)}, ${selectedLocation.longitude.toFixed(5)}`);
     selectedMarkerRef.current = selectedMarker;
+
+    const radiusOverlay = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    radiusOverlay.classList.add("analysis-radius-overlay");
+    radiusOverlay.setAttribute("aria-hidden", "true");
+    const radiusFill = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    const radiusCasing = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    const radiusLine = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    radiusFill.classList.add("analysis-radius-fill");
+    radiusCasing.classList.add("analysis-radius-casing");
+    radiusLine.classList.add("analysis-radius-line");
+    radiusOverlay.appendChild(radiusFill);
+    radiusOverlay.appendChild(radiusCasing);
+    radiusOverlay.appendChild(radiusLine);
+    map.getContainer().appendChild(radiusOverlay);
+    radiusOverlayRef.current = radiusOverlay;
+
+    const updateRadiusOverlay = () => {
+      const mapContainer = map.getContainer();
+      radiusOverlay.setAttribute("viewBox", `0 0 ${mapContainer.clientWidth} ${mapContainer.clientHeight}`);
+      const points = projectRadiusPoints(map, locationRef.current, radiusRef.current);
+      radiusFill.setAttribute("points", points);
+      radiusCasing.setAttribute("points", points);
+      radiusLine.setAttribute("points", points);
+      radiusOverlay.dataset.radiusKm = String(radiusRef.current);
+    };
+    radiusOverlayUpdaterRef.current = updateRadiusOverlay;
+    map.on("move", updateRadiusOverlay);
+    map.on("resize", updateRadiusOverlay);
+    updateRadiusOverlay();
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
@@ -348,7 +387,7 @@ export function MapExplorer() {
       }
     });
     map.on("style.load", () => {
-      if (map.getSource("analysis-radius")) {
+      if (map.getSource("entities")) {
         setMapReady(true);
         return;
       }
@@ -364,14 +403,6 @@ export function MapExplorer() {
       map.addSource("entities", { type: "geojson", data: entityCollection([]), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
       map.addLayer({ id: "entity-clusters", type: "symbol", source: "entities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.clusterIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": zoomScaledValue(MAP_MARKER_STYLE.clusterTextSize), "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
       map.addLayer({ id: "entity-points", type: "symbol", source: "entities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": ["match", ["get", "kind"], "EV_STATION", "marker-ev", "COMPETITOR", "marker-competitor", "GAS_STATION", "marker-gas", "POI", "marker-poi", "marker-partner"], "icon-size": zoomScaledValue(MAP_MARKER_STYLE.entityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
-
-      const selectedLocation = locationRef.current;
-      const selectedRadius = radiusRef.current;
-      map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(selectedLocation.longitude, selectedLocation.latitude, selectedRadius) });
-      map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#087ff0", "fill-opacity": .18 } });
-      map.addLayer({ id: "analysis-risk-fill", type: "fill", source: "analysis-radius", layout: { visibility: "none" }, paint: { "fill-color": "#7a71d8", "fill-opacity": .22 } });
-      map.addLayer({ id: "analysis-line-casing", type: "line", source: "analysis-radius", paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": .95 } });
-      map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#087ff0", "line-width": 3.5, "line-opacity": 1 } });
 
       map.on("click", "entity-points", (event) => {
         const feature = event.features?.[0];
@@ -398,6 +429,15 @@ export function MapExplorer() {
     });
     return () => {
       cancelled = true;
+      const currentMap = mapRef.current;
+      const radiusOverlayUpdater = radiusOverlayUpdaterRef.current;
+      if (currentMap && radiusOverlayUpdater) {
+        currentMap.off("move", radiusOverlayUpdater);
+        currentMap.off("resize", radiusOverlayUpdater);
+      }
+      radiusOverlayRef.current?.remove();
+      radiusOverlayRef.current = null;
+      radiusOverlayUpdaterRef.current = null;
       selectedMarkerRef.current?.remove();
       selectedMarkerRef.current = null;
       mapRef.current?.remove();
@@ -408,8 +448,8 @@ export function MapExplorer() {
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    syncMapSelectionSources(map, location, radius);
     selectedMarkerRef.current?.setLngLat([location.longitude, location.latitude]);
+    radiusOverlayUpdaterRef.current?.();
     const markerElement = selectedMarkerRef.current?.getElement();
     if (markerElement) {
       markerElement.dataset.latitude = location.latitude.toFixed(5);
@@ -428,9 +468,7 @@ export function MapExplorer() {
     ["opportunity-points", "opportunity-clusters"].forEach((id) => {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", opportunityVisibility);
     });
-    if (map.getLayer("analysis-risk-fill")) {
-      map.setLayoutProperty("analysis-risk-fill", "visibility", layerState.FLOOD ? "visible" : "none");
-    }
+    radiusOverlayRef.current?.classList.toggle("show-flood-risk", layerState.FLOOD);
   }, [layerState, publicContext]);
 
   const t = {

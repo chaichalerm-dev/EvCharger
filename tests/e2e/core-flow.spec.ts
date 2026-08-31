@@ -19,6 +19,11 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
   await expect(selectedMarker).toBeVisible();
   await expect(selectedMarker).toHaveCount(1);
   await expect(selectedMarker).toHaveAttribute("data-latitude", "13.73660");
+  const radiusOverlay = page.locator(".analysis-radius-overlay");
+  await expect(radiusOverlay).toBeVisible();
+  await expect(radiusOverlay).toHaveAttribute("data-radius-km", "5");
+  await expect(radiusOverlay.locator("polygon")).toHaveCount(3);
+  await expect(radiusOverlay.locator(".analysis-radius-line")).toHaveAttribute("points", /,/);
   await page.locator(".maplibregl-canvas").click({ position: { x: 100, y: 180 } });
   await expect(page.locator(".result-heading")).toContainText("READY TO ANALYZE");
   await expect(selectedMarker).not.toHaveAttribute("data-latitude", "13.73660");
@@ -64,6 +69,7 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".fallback-map-visual")).toHaveCount(0, { timeout: 15000 });
   await expect(page.locator(".dom-selected")).toHaveCount(0);
   await expect(page.locator(".selected-map-marker")).toHaveCount(1);
+  await expect(page.locator(".analysis-radius-overlay")).toHaveCount(1);
   await expect(page.locator(".map-country-badge")).toHaveCount(0);
   await expect(page.locator(".map-instruction")).toHaveCount(0);
   await expect(page.locator(".layer-icon svg")).toHaveCount(7);

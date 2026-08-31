@@ -1,8 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
-import type { Map as MapLibreMap } from "maplibre-gl";
+import { describe, expect, it } from "vitest";
 import {
+  circlePolygon,
   shouldRecenterForSelection,
-  syncMapSelectionSources,
 } from "@/src/features/map/map-selection";
 
 describe("map selection camera behavior", () => {
@@ -14,19 +13,12 @@ describe("map selection camera behavior", () => {
     expect(shouldRecenterForSelection("SEARCH")).toBe(true);
   });
 
-  it("updates the radius source without waiting for raster tiles", () => {
-    const radiusSetData = vi.fn();
-    const map = {
-      getSource: vi.fn((id: string) => id === "analysis-radius" ? { setData: radiusSetData } : undefined),
-      isStyleLoaded: vi.fn(() => false),
-    } as unknown as Pick<MapLibreMap, "getSource">;
+  it("creates a closed geodesic radius polygon", () => {
+    const coordinates = circlePolygon(100.61, 13.7, 5).geometry.coordinates[0];
 
-    const result = syncMapSelectionSources(map, { latitude: 13.7, longitude: 100.61 }, 5);
-
-    expect(result).toEqual({ radiusUpdated: true });
-    expect(radiusSetData).toHaveBeenCalledOnce();
-    expect(radiusSetData).toHaveBeenCalledWith(expect.objectContaining({
-      geometry: expect.objectContaining({ type: "Polygon" }),
-    }));
+    expect(coordinates).toHaveLength(65);
+    expect(coordinates[0]).toEqual(coordinates.at(-1));
+    expect(Math.max(...coordinates.map(([longitude]) => longitude))).toBeGreaterThan(100.61);
+    expect(Math.min(...coordinates.map(([longitude]) => longitude))).toBeLessThan(100.61);
   });
 });

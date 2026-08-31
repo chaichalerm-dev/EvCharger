@@ -1,11 +1,4 @@
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-
 export type MapSelectionOrigin = "MAP" | "SEARCH";
-
-export type MapSelectionLocation = {
-  latitude: number;
-  longitude: number;
-};
 
 export function circlePolygon(longitude: number, latitude: number, radiusKm: number) {
   const coordinates: number[][] = [];
@@ -20,23 +13,6 @@ export function circlePolygon(longitude: number, latitude: number, radiusKm: num
     coordinates.push([longitude2 * 180 / Math.PI, latitude2 * 180 / Math.PI]);
   }
   return { type: "Feature" as const, properties: {}, geometry: { type: "Polygon" as const, coordinates: [coordinates] } };
-}
-
-/**
- * Source existence is the readiness signal for radius updates. MapLibre's
- * isStyleLoaded() can temporarily be false while raster tiles are loading,
- * even though this GeoJSON source is already available and writable.
- */
-export function syncMapSelectionSources(
-  map: Pick<MapLibreMap, "getSource">,
-  location: MapSelectionLocation,
-  radiusKm: number,
-) {
-  const radiusSource = map.getSource("analysis-radius") as GeoJSONSource | undefined;
-
-  radiusSource?.setData(circlePolygon(location.longitude, location.latitude, radiusKm));
-
-  return { radiusUpdated: Boolean(radiusSource) };
 }
 
 /**
