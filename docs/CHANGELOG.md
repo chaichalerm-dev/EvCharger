@@ -4,6 +4,20 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.8.1 — 2026-08-31
+
+### ภาษาไทย
+
+- ออกแบบ brand mark ใหม่ให้เป็นหมุดทำเลแบบ Electric Blue/Cyan มีสายฟ้าสีขาวและวงจรพลังงานบนพื้น Navy
+- เปลี่ยนทั้งโลโก้ sidebar และ favicon ให้ใช้อัตลักษณ์เดียวกัน
+- ใช้ชื่อไฟล์ asset ใหม่เพื่อหลีกเลี่ยง favicon cache จากเวอร์ชันสีเขียวเดิม
+
+### English
+
+- Redesigned the brand mark as an Electric Blue/Cyan location pin with a white charging bolt and energy-circuit details on Navy.
+- Applied the same identity to the sidebar logo and browser favicon.
+- Introduced a new asset filename to bypass stale browser caches from the previous green version.
+
 ## 0.8.0 — 2026-08-31
 
 ### ภาษาไทย

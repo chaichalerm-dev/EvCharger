@@ -14,8 +14,8 @@ export const metadata: Metadata = {
   description: "A frontend-first decision support prototype for EV charging expansion in Thailand.",
   applicationName: "EV Atlas Thailand",
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    shortcut: "/favicon.svg",
+    icon: [{ url: "/ev-atlas-electric.svg", type: "image/svg+xml" }],
+    shortcut: "/ev-atlas-electric.svg",
   },
   openGraph: {
     title: "EV Atlas Thailand",
