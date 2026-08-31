@@ -95,6 +95,8 @@ Layer controls expose every category with checkbox, icon, label, and on/off stat
 
 When building geometry is available, urban 3D prioritizes visible building massing and temporarily disables raster terrain/hillshade. This prevents zero-based GeoJSON extrusions from being depth-occluded by the terrain surface. If no building geometry is available, terrain is restored as the nationwide 3D fallback.
 
+A blue footprint layer remains below the extrusion as a rendering fallback. Geometry without tagged OSM heights receives a clearly disclosed minimum display height, while the selected or nearest building is made more prominent for site analysis. These are display aids only, not surveyed building measurements.
+
 3D independently enables Mapterhorn terrain and OpenFreeMap building tiles. The camera centers on the selected point at close zoom, 65° pitch, and a useful bearing. If vector tiles do not yield visible geometry, a bounded Overpass request loads up to 450 real OSM building ways within 700 metres. If Overpass also lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the local GeoJSON extrusion layer. The containing or nearest building within 120 metres is highlighted in cyan. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m display default are estimated. UI reports buildings-ready, terrain-only, loading, or unavailable honestly and does not claim surveyed shapes or heights.
 
 Buildings begin at zoom 14 with antialiasing and remain below analysis and marker overlays. Recenter and 3D actions are compact icon-only controls with accessible names.

@@ -11,12 +11,14 @@ Dates use ISO format and entries describe user and technical impact.
 - แก้อาคารรอบจุดที่เลือกโหลดสำเร็จแต่ไม่ปรากฏ เพราะ raster terrain/hillshade บังฐานอาคาร GeoJSON ใน depth buffer
 - เมื่อมีข้อมูลอาคาร ระบบใช้โหมดอาคารเมือง 3D ที่ให้ความสำคัญกับ extrusion ที่มองเห็นได้ และกลับไปใช้ภูมิประเทศ 3D อัตโนมัติเมื่อบริเวณนั้นไม่มีรูปทรงอาคาร
 - ป้องกัน event สถานะแผนที่เขียนทับผลโหลดอาคาร โดยเก็บจำนวนอาคารล่าสุดแยกจากจำนวน feature ที่กล้องกำลังมองเห็น
+- เพิ่มชั้น footprint สีฟ้าและความสูงขั้นต่ำเพื่อให้ geometry ที่เป็นค่าประมาณจากผู้ให้บริการ fallback มองเห็นได้ชัดเจนบน Vercel โดยอาคารที่เลือกจะสูงและเด่นกว่า พร้อมคงป้ายกำกับว่าเป็นค่าประมาณ
 
 ### English
 
 - Fixed selected-area buildings loading successfully but remaining invisible because raster terrain/hillshade depth-occluded the GeoJSON building bases.
 - Urban 3D now prioritizes visible building extrusions when geometry is available and automatically restores nationwide terrain when no building geometry is available.
 - Prevented asynchronous map events from overwriting building-ready state by tracking the latest loaded building count independently from currently rendered features.
+- Added a blue footprint layer and minimum display heights so fallback geometry remains legible on Vercel; the selected building is intentionally more prominent and all estimated geometry remains labeled as estimated.
 
 ## 0.9.5 — 2026-08-31
 

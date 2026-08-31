@@ -8,6 +8,7 @@ export interface BuildingFootprintProperties {
   osmId: number;
   name: string;
   heightMeters: number;
+  renderHeightMeters: number;
   minHeightMeters: number;
   heightSource: BuildingHeightSource;
   geometrySource: "OSM_FOOTPRINT" | "PHOTON_EXTENT" | "CENTROID_ESTIMATE";
@@ -81,7 +82,13 @@ function selectNearestBuilding(features: BuildingFootprintFeature[], point: GeoP
     .map((feature) => ({ feature, distance: centroidDistanceMeters(point, feature.geometry.coordinates[0]) }))
     .filter(({ distance }) => distance <= OSM_BUILDING_QUERY.selectedBuildingDistanceMeters)
     .sort((left, right) => left.distance - right.distance)[0]?.feature;
-  if (selected) selected.properties.selected = true;
+  if (selected) {
+    selected.properties.selected = true;
+    selected.properties.renderHeightMeters = Math.max(
+      selected.properties.renderHeightMeters,
+      OSM_BUILDING_QUERY.selectedMinimumDisplayHeightMeters,
+    );
+  }
 }
 
 async function photonBuildingFootprints(point: GeoPoint): Promise<BuildingFootprintCollection> {
@@ -120,6 +127,7 @@ async function photonBuildingFootprints(point: GeoPoint): Promise<BuildingFootpr
           osmId,
           name: feature.properties?.name || "OSM building",
           heightMeters: OSM_BUILDING_QUERY.defaultHeightMeters,
+          renderHeightMeters: OSM_BUILDING_QUERY.minimumDisplayHeightMeters,
           minHeightMeters: 0,
           heightSource: "DEFAULT_ESTIMATE",
           geometrySource: hasUsableExtent ? "PHOTON_EXTENT" : "CENTROID_ESTIMATE",
@@ -198,6 +206,7 @@ export class OverpassBuildingFootprintProvider implements BuildingFootprintProvi
             osmId: element.id,
             name: tags.name || tags["addr:housename"] || "OSM building",
             heightMeters: Math.max(height.heightMeters, minHeight + 1),
+            renderHeightMeters: Math.max(height.heightMeters, OSM_BUILDING_QUERY.minimumDisplayHeightMeters),
             minHeightMeters: minHeight,
             heightSource: height.heightSource,
             geometrySource: "OSM_FOOTPRINT",

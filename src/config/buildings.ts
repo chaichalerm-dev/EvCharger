@@ -5,6 +5,8 @@ export const OSM_BUILDING_QUERY = {
   clientTimeoutMs: 5_000,
   floorHeightMeters: 3.1,
   defaultHeightMeters: 6.2,
+  minimumDisplayHeightMeters: 12,
+  selectedMinimumDisplayHeightMeters: 22,
   maximumHeightMeters: 500,
   selectedBuildingDistanceMeters: 120,
 } as const;

@@ -265,6 +265,7 @@ export function MapExplorer() {
       source.setData(collection);
       threeDBuildingCountRef.current = collection.features.length;
       setThreeDBuildingCount(collection.features.length);
+      if (map.getLayer("osm-buildings-footprints")) map.setLayoutProperty("osm-buildings-footprints", "visibility", collection.features.length ? "visible" : "none");
       if (map.getLayer("osm-buildings-3d")) map.setLayoutProperty("osm-buildings-3d", "visibility", collection.features.length ? "visible" : "none");
       if (collection.features.length) {
         // MapLibre fill extrusions can be depth-occluded by raster terrain because
@@ -341,6 +342,7 @@ export function MapExplorer() {
         try { terrainEnabled = ensure3DTerrain(map); } catch (error) { console.warn("Unable to enable Mapterhorn terrain", error); }
         try { buildingsEnabled = ensure3DBuildings(map); } catch (error) { console.warn("Unable to enable OpenFreeMap buildings", error); }
         const firstOverlayLayer = firstMapOverlayLayer(map);
+        if (map.getLayer("osm-buildings-footprints") && firstOverlayLayer) map.moveLayer("osm-buildings-footprints", firstOverlayLayer);
         if (map.getLayer("osm-buildings-3d") && firstOverlayLayer) map.moveLayer("osm-buildings-3d", firstOverlayLayer);
         if (!terrainEnabled && !buildingsEnabled) {
           setThreeDStatus("UNAVAILABLE");
@@ -355,6 +357,7 @@ export function MapExplorer() {
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
       }
       if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", next ? "visible" : "none");
+      if (map.getLayer("osm-buildings-footprints")) map.setLayoutProperty("osm-buildings-footprints", "visibility", next ? "visible" : "none");
       if (map.getLayer("osm-buildings-3d")) map.setLayoutProperty("osm-buildings-3d", "visibility", next ? "visible" : "none");
       map.easeTo({
         center: [location.longitude, location.latitude],
@@ -539,16 +542,27 @@ export function MapExplorer() {
       map.addLayer({ id: "opportunity-points", type: "symbol", source: "opportunities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": "marker-opportunity", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.opportunityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
       map.addSource("osm-building-footprints", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
       map.addLayer({
+        id: "osm-buildings-footprints",
+        type: "fill",
+        source: "osm-building-footprints",
+        minzoom: 13,
+        layout: { visibility: "none" },
+        paint: {
+          "fill-color": ["case", ["==", ["get", "selected"], true], "#00d8ff", "#1476ad"],
+          "fill-opacity": 0.48,
+        },
+      }, "opportunity-clusters");
+      map.addLayer({
         id: "osm-buildings-3d",
         type: "fill-extrusion",
         source: "osm-building-footprints",
         minzoom: 14,
         layout: { visibility: "none" },
         paint: {
-          "fill-extrusion-color": ["case", ["==", ["get", "selected"], true], "#00b8f0", ["interpolate", ["linear"], ["get", "heightMeters"], 0, "#c8e9fa", 40, "#4b9ed1", 120, "#155c91"]],
-          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.2, ["get", "heightMeters"]],
+          "fill-extrusion-color": ["case", ["==", ["get", "selected"], true], "#00d8ff", "#1476ad"],
+          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 13.5, 0, 14.8, ["get", "renderHeightMeters"]],
           "fill-extrusion-base": ["get", "minHeightMeters"],
-          "fill-extrusion-opacity": 0.92,
+          "fill-extrusion-opacity": 0.96,
           "fill-extrusion-vertical-gradient": true,
         },
       }, "opportunity-clusters");
