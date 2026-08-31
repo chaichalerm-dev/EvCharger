@@ -97,6 +97,8 @@ When building geometry is available, urban 3D prioritizes visible building massi
 
 A blue footprint layer remains below the extrusion as a rendering fallback. Geometry without tagged OSM heights receives a clearly disclosed minimum display height, while the selected or nearest building is made more prominent for site analysis. These are display aids only, not surveyed building measurements.
 
+For browser/WebGL combinations that fail to paint an extrusion, a bounded set of nearby, coordinate-anchored OSM building blocks is rendered above the canvas. This is a visibility fallback rather than a replacement for authoritative 3D building data.
+
 3D independently enables Mapterhorn terrain and OpenFreeMap building tiles. The camera centers on the selected point at close zoom, 65° pitch, and a useful bearing. If vector tiles do not yield visible geometry, a bounded Overpass request loads up to 450 real OSM building ways within 700 metres. If Overpass also lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the local GeoJSON extrusion layer. The containing or nearest building within 120 metres is highlighted in cyan. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m display default are estimated. UI reports buildings-ready, terrain-only, loading, or unavailable honestly and does not claim surveyed shapes or heights.
 
 Buildings begin at zoom 14 with antialiasing and remain below analysis and marker overlays. Recenter and 3D actions are compact icon-only controls with accessible names.

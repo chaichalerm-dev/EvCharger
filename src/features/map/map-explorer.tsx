@@ -11,7 +11,7 @@ import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
 import type { MapEntity } from "@/src/domain/models";
 import type { PublicLocationContext } from "@/src/domain/public-api";
 import { NominatimGeocodingProvider } from "@/src/providers/nominatim-geocoding.provider";
-import { OverpassBuildingFootprintProvider } from "@/src/providers/osm-building.provider";
+import { OverpassBuildingFootprintProvider, type BuildingFootprintCollection } from "@/src/providers/osm-building.provider";
 import { getPublicLocationContext } from "@/src/providers/public-location.providers";
 import { getApiConnection } from "@/src/services/api-connection.service";
 import { analyzeRealLocation } from "@/src/services/location-analysis.service";
@@ -182,6 +182,21 @@ function rendered3DBuildingCount(map: MapLibreMap) {
   ), 0);
 }
 
+function buildingCenter(feature: BuildingFootprintCollection["features"][number]) {
+  const ring = feature.geometry.coordinates[0].slice(0, -1);
+  return ring.reduce((center, [longitude, latitude]) => ({
+    longitude: center.longitude + longitude / ring.length,
+    latitude: center.latitude + latitude / ring.length,
+  }), { longitude: 0, latitude: 0 });
+}
+
+function buildingDistanceSquared(feature: BuildingFootprintCollection["features"][number], point: Candidate) {
+  const center = buildingCenter(feature);
+  const latitudeDistance = (center.latitude - point.latitude) * 111_320;
+  const longitudeDistance = (center.longitude - point.longitude) * 111_320 * Math.cos(point.latitude * Math.PI / 180);
+  return latitudeDistance ** 2 + longitudeDistance ** 2;
+}
+
 export function MapExplorer() {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -189,9 +204,11 @@ export function MapExplorer() {
   const radiusOverlayRef = useRef<SVGSVGElement | null>(null);
   const radiusOverlayUpdaterRef = useRef<(() => void) | null>(null);
   const entityMarkersRef = useRef<MapLibreMarker[]>([]);
+  const buildingMarkersRef = useRef<MapLibreMarker[]>([]);
   const visibleEntitiesRef = useRef<MapEntity[]>([]);
   const renderEntityMarkersRef = useRef<(() => void) | null>(null);
   const loadBuildingFootprintsRef = useRef<((candidate: Candidate) => Promise<void>) | null>(null);
+  const renderBuildingFallbackRef = useRef<((collection: BuildingFootprintCollection, point: Candidate) => void) | null>(null);
   const buildingRequestSequenceRef = useRef(0);
   const threeDBuildingCountRef = useRef(0);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
@@ -255,6 +272,8 @@ export function MapExplorer() {
     if (!map || !source || !is3DRef.current) return;
     const requestSequence = ++buildingRequestSequenceRef.current;
     source.setData({ type: "FeatureCollection", features: [] });
+    buildingMarkersRef.current.forEach((marker) => marker.remove());
+    buildingMarkersRef.current = [];
     threeDBuildingCountRef.current = 0;
     setThreeDBuildingCount(0);
     setThreeDStatus("LOADING");
@@ -276,6 +295,15 @@ export function MapExplorer() {
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
         if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", "none");
         setThreeDStatus("READY");
+        // A bounded DOM building layer sits above the WebGL canvas as a dependable
+        // visual aid. It keeps nearby OSM buildings visible on production devices
+        // whose WebGL driver accepts source data but does not paint extrusions.
+        const renderBuildingBlocks = () => {
+          if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
+          renderBuildingFallbackRef.current?.(collection, candidate);
+        };
+        map.once("idle", renderBuildingBlocks);
+        window.setTimeout(renderBuildingBlocks, 900);
       } else {
         try { ensure3DTerrain(map); } catch (error) { console.warn("Unable to restore Mapterhorn terrain", error); }
         setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
@@ -351,6 +379,8 @@ export function MapExplorer() {
         void loadBuildingFootprints(locationRef.current);
       } else {
         buildingRequestSequenceRef.current += 1;
+        buildingMarkersRef.current.forEach((marker) => marker.remove());
+        buildingMarkersRef.current = [];
         threeDBuildingCountRef.current = 0;
         setThreeDBuildingCount(0);
         map.setTerrain(null);
@@ -498,6 +528,31 @@ export function MapExplorer() {
           .setLngLat([entity.longitude, entity.latitude]).addTo(map);
       });
     };
+    const renderBuildingFallback = (collection: BuildingFootprintCollection, point: Candidate) => {
+      buildingMarkersRef.current.forEach((marker) => marker.remove());
+      buildingMarkersRef.current = [];
+      const nearbyBuildings = [...collection.features]
+        .sort((left, right) => {
+          if (left.properties.selected !== right.properties.selected) return left.properties.selected ? -1 : 1;
+          return buildingDistanceSquared(left, point) - buildingDistanceSquared(right, point);
+        })
+        .slice(0, 18);
+      buildingMarkersRef.current = nearbyBuildings.map((feature) => {
+        const center = buildingCenter(feature);
+        const markerElement = document.createElement("div");
+        markerElement.className = `map-building-block${feature.properties.selected ? " selected" : ""}`;
+        markerElement.setAttribute("role", "img");
+        markerElement.setAttribute("aria-label", languageRef.current === "th"
+          ? `อาคารประมาณการ ${feature.properties.name}`
+          : `Estimated building ${feature.properties.name}`);
+        markerElement.title = feature.properties.name;
+        markerElement.appendChild(document.createElement("span"));
+        return new maplibregl.Marker({ element: markerElement, anchor: "bottom", pitchAlignment: "viewport", rotationAlignment: "viewport" })
+          .setLngLat([center.longitude, center.latitude])
+          .addTo(map);
+      });
+    };
+    renderBuildingFallbackRef.current = renderBuildingFallback;
     renderEntityMarkersRef.current = renderEntityMarkers;
     map.on("moveend", renderEntityMarkers);
     map.on("zoomend", renderEntityMarkers);
@@ -599,8 +654,11 @@ export function MapExplorer() {
       selectedMarkerRef.current = null;
       entityMarkersRef.current.forEach((marker) => marker.remove());
       entityMarkersRef.current = [];
+      buildingMarkersRef.current.forEach((marker) => marker.remove());
+      buildingMarkersRef.current = [];
       visibleEntitiesRef.current = [];
       renderEntityMarkersRef.current = null;
+      renderBuildingFallbackRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
