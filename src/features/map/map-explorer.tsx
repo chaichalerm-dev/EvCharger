@@ -20,7 +20,6 @@ import { useApp } from "@/src/store/app-context";
 import { registerMapMarkerImages } from "./map-marker-icons";
 import {
   circlePolygon,
-  pointFeature,
   shouldRecenterForSelection,
   syncMapSelectionSources,
   type MapSelectionOrigin,
@@ -82,7 +81,7 @@ function zoomScaledValue(value: { overview: number; normal: number; detail: numb
 }
 
 function firstMapOverlayLayer(map: MapLibreMap) {
-  return ["opportunity-clusters", "entity-clusters", "analysis-fill", "selected-point-halo"]
+  return ["opportunity-clusters", "entity-clusters", "analysis-fill"]
     .find((layerId) => map.getLayer(layerId));
 }
 
@@ -237,7 +236,7 @@ export function MapExplorer() {
       return;
     }
     const applyMode = () => {
-      if (!map.getLayer("selected-point")) return false;
+      if (!map.getLayer("analysis-line")) return false;
       if (next) {
         let terrainEnabled = false;
         let buildingsEnabled = false;
@@ -349,7 +348,7 @@ export function MapExplorer() {
       }
     });
     map.on("style.load", () => {
-      if (map.getSource("selected-point")) {
+      if (map.getSource("analysis-radius")) {
         setMapReady(true);
         return;
       }
@@ -369,12 +368,10 @@ export function MapExplorer() {
       const selectedLocation = locationRef.current;
       const selectedRadius = radiusRef.current;
       map.addSource("analysis-radius", { type: "geojson", data: circlePolygon(selectedLocation.longitude, selectedLocation.latitude, selectedRadius) });
-      map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#006fdd", "fill-opacity": .11 } });
+      map.addLayer({ id: "analysis-fill", type: "fill", source: "analysis-radius", paint: { "fill-color": "#087ff0", "fill-opacity": .18 } });
       map.addLayer({ id: "analysis-risk-fill", type: "fill", source: "analysis-radius", layout: { visibility: "none" }, paint: { "fill-color": "#7a71d8", "fill-opacity": .22 } });
-      map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#006fdd", "line-width": 2.5, "line-dasharray": [2, 2] } });
-      map.addSource("selected-point", { type: "geojson", data: pointFeature(selectedLocation.longitude, selectedLocation.latitude) });
-      map.addLayer({ id: "selected-point-halo", type: "circle", source: "selected-point", paint: { "circle-color": "#006fdd", "circle-radius": zoomScaledValue(MAP_MARKER_STYLE.selectedHaloRadius), "circle-opacity": .18, "circle-pitch-alignment": MAP_MARKER_STYLE.pitchAlignment, "circle-pitch-scale": MAP_MARKER_STYLE.pitchScale } });
-      map.addLayer({ id: "selected-point", type: "symbol", source: "selected-point", layout: { "icon-image": "marker-selected", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.selectedIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": true, "icon-ignore-placement": true } });
+      map.addLayer({ id: "analysis-line-casing", type: "line", source: "analysis-radius", paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": .95 } });
+      map.addLayer({ id: "analysis-line", type: "line", source: "analysis-radius", paint: { "line-color": "#087ff0", "line-width": 3.5, "line-opacity": 1 } });
 
       map.on("click", "entity-points", (event) => {
         const feature = event.features?.[0];

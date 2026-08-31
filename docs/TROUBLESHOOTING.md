@@ -16,9 +16,11 @@
 
 ### เลือกพิกัดแล้วไม่เห็นหมุดหรือวงรัศมี
 
-ตรวจว่า source `selected-point` และ `analysis-radius` ถูกสร้างหลัง `style.load` แล้ว การอัปเดต GeoJSON ห้ามรอ `map.isStyleLoaded()` เพราะ raster tile ที่ยังโหลดอาจทำให้ค่านี้เป็น false ทั้งที่ source พร้อมเขียนแล้ว ให้ตรวจ source ด้วย `map.getSource()` โดยตรงและแยกความพร้อมของ layer ออกจากความพร้อมของข้อมูล tile ภายนอก
+ตรวจว่า source `analysis-radius` ถูกสร้างหลัง `style.load` แล้ว การอัปเดต GeoJSON ห้ามรอ `map.isStyleLoaded()` เพราะ raster tile ที่ยังโหลดอาจทำให้ค่านี้เป็น false ทั้งที่ source พร้อมเขียนแล้ว ให้ตรวจ source ด้วย `map.getSource()` โดยตรงและแยกความพร้อมของ layer ออกจากความพร้อมของข้อมูล tile ภายนอก
 
 หมุดตำแหน่งหลักแสดงด้วย native MapLibre marker ที่ผูกกับ longitude/latitude เหนือ WebGL canvas จึงไม่ควรถูกชั้น 3D บัง ไม่ขยายตามการซูม และต้องเลื่อนออกจากหน้าจอเมื่อ pan ออกจากพิกัดนั้น
+
+หากเห็นหมุดสองอัน ให้ตรวจว่าไม่มี WebGL `selected-point` symbol/circle layer เหลืออยู่ ระบบต้องแสดงหมุด native เพียงหนึ่งอัน ส่วนวงรัศมีใช้ `analysis-fill`, `analysis-line-casing` และ `analysis-line`
 
 ### ค้นหาไม่พบหรือ Nominatim ล้มเหลว
 
@@ -73,9 +75,11 @@ Verify capped zoom expressions, clustering, and viewport alignment. Avoid unboun
 
 ### A selected coordinate has no visible pin or radius
 
-Confirm that `selected-point` and `analysis-radius` are created after `style.load`. Do not gate GeoJSON updates on `map.isStyleLoaded()`: pending raster tiles can keep it false even when the custom sources are writable. Check the required source with `map.getSource()` and treat custom-layer readiness separately from external tile readiness.
+Confirm that `analysis-radius` is created after `style.load`. Do not gate GeoJSON updates on `map.isStyleLoaded()`: pending raster tiles can keep it false even when the custom source is writable. Check the required source with `map.getSource()` and treat custom-layer readiness separately from external tile readiness.
 
 The primary selected pin is also rendered as a native MapLibre marker anchored to longitude/latitude above the WebGL canvas. It should remain above 3D layers, retain a fixed screen size while zooming, and leave the viewport when the map is panned away from its coordinate.
+
+If two pins appear, verify that no WebGL `selected-point` symbol/circle layer remains. The application should render exactly one native marker. The radius uses `analysis-fill`, `analysis-line-casing`, and `analysis-line`.
 
 ### Search/provider/company issues
 

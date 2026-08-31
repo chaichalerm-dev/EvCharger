@@ -17,6 +17,7 @@ test("searches and recalculates an arbitrary location", async ({ page }) => {
   await expect(page.locator(".result-panel")).toContainText("600");
   const selectedMarker = page.locator(".selected-map-marker");
   await expect(selectedMarker).toBeVisible();
+  await expect(selectedMarker).toHaveCount(1);
   await expect(selectedMarker).toHaveAttribute("data-latitude", "13.73660");
   await page.locator(".maplibregl-canvas").click({ position: { x: 100, y: 180 } });
   await expect(page.locator(".result-heading")).toContainText("READY TO ANALYZE");
@@ -62,6 +63,7 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".map-canvas")).toHaveAttribute("data-country", "TH");
   await expect(page.locator(".fallback-map-visual")).toHaveCount(0, { timeout: 15000 });
   await expect(page.locator(".dom-selected")).toHaveCount(0);
+  await expect(page.locator(".selected-map-marker")).toHaveCount(1);
   await expect(page.locator(".map-country-badge")).toHaveCount(0);
   await expect(page.locator(".map-instruction")).toHaveCount(0);
   await expect(page.locator(".layer-icon svg")).toHaveCount(7);

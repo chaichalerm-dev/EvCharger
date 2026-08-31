@@ -4,6 +4,18 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.4 — 2026-08-31
+
+### ภาษาไทย
+
+- ถอดหมุด WebGL เดิมที่ซ้ำกับ native MapLibre marker ออก ให้เหลือหมุดตำแหน่งที่เลือกเพียงหนึ่งอัน
+- เพิ่มความชัดของรัศมีด้วยพื้นสีน้ำเงินและเส้นขอบสองชั้นสีขาว/น้ำเงิน ซึ่งยังคงคำนวณตามระยะจริง
+
+### English
+
+- Removed the legacy WebGL selected-point symbol so exactly one native MapLibre selection marker remains.
+- Improved radius visibility with a blue fill and a high-contrast white/blue double outline while retaining geodesic distance calculation.
+
 ## 0.9.3 — 2026-08-31
 
 ### ภาษาไทย

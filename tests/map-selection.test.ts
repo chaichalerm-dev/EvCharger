@@ -14,24 +14,19 @@ describe("map selection camera behavior", () => {
     expect(shouldRecenterForSelection("SEARCH")).toBe(true);
   });
 
-  it("updates marker and radius sources without waiting for raster tiles", () => {
+  it("updates the radius source without waiting for raster tiles", () => {
     const radiusSetData = vi.fn();
-    const pointSetData = vi.fn();
     const map = {
-      getSource: vi.fn((id: string) => id === "analysis-radius"
-        ? { setData: radiusSetData }
-        : id === "selected-point"
-          ? { setData: pointSetData }
-          : undefined),
+      getSource: vi.fn((id: string) => id === "analysis-radius" ? { setData: radiusSetData } : undefined),
       isStyleLoaded: vi.fn(() => false),
     } as unknown as Pick<MapLibreMap, "getSource">;
 
     const result = syncMapSelectionSources(map, { latitude: 13.7, longitude: 100.61 }, 5);
 
-    expect(result).toEqual({ radiusUpdated: true, pointUpdated: true });
+    expect(result).toEqual({ radiusUpdated: true });
     expect(radiusSetData).toHaveBeenCalledOnce();
-    expect(pointSetData).toHaveBeenCalledWith(expect.objectContaining({
-      geometry: expect.objectContaining({ coordinates: [100.61, 13.7] }),
+    expect(radiusSetData).toHaveBeenCalledWith(expect.objectContaining({
+      geometry: expect.objectContaining({ type: "Polygon" }),
     }));
   });
 });
