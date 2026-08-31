@@ -22,7 +22,7 @@ describe("public location providers", () => {
     expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(entities).toHaveLength(1);
     expect(entities[0]).toMatchObject({ kind: "GAS_STATION", name: "Fuel test" });
-    expect(String(fetchMock.mock.calls[1][0])).toContain("photon.komoot.io/reverse");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("/api/photon");
   });
 
   it("combines partial provider success without crashing the map", async () => {

@@ -8,7 +8,7 @@ Runtime ใช้ Real Provider Mode ข้อมูล public observation ถ�
 
 ทุก provider ควรมี metadata: ชื่อ provider, endpoint, license/terms, coverage, วิธีเก็บ, collectedAt, lastUpdated, confidence, verifiedStatus, cache age และ error state Production ingestion ต้องเก็บ raw snapshot ที่ตรวจสอบย้อนกลับได้และทำ sync แบบ idempotent
 
-ระบบใช้ Overpass endpoint ที่ผู้ใช้ตั้งค่าเป็นลำดับแรก หากไม่พร้อมจึงใช้ Photon `/reverse` แบบ bounded radius สำหรับสถานีชาร์จ ปั๊มน้ำมัน และกลุ่ม `amenity`, `shop`, `tourism` ระบบจำกัดเวลาและจำนวนผลลัพธ์ พร้อม cache ในหน่วยความจำ เพื่อไม่สร้างภาระเกินจำเป็น ทั้งสองบริการเป็น shared community/demo infrastructure ไม่มี production SLA
+ระบบใช้ Overpass endpoint ที่ผู้ใช้ตั้งค่าเป็นลำดับแรก หากไม่พร้อมจึงใช้ Photon `/reverse` แบบ bounded radius สำหรับสถานีชาร์จ ปั๊มน้ำมัน และกลุ่ม `amenity`, `shop`, `tourism` ค่า Photon เริ่มต้นเรียกผ่าน same-origin Next.js route ซึ่ง whitelist tag จำกัดพิกัดประเทศไทย จำกัดรัศมี/จำนวนผลลัพธ์ และไม่รับ URL ปลายทางจากผู้ใช้ จึงแก้ CORS โดยไม่สร้าง arbitrary proxy ระบบยังใช้ timeout และ cache เพื่อลดภาระ ทั้งสองบริการเป็น shared community/demo infrastructure ไม่มี production SLA
 
 ### Provider ที่เชื่อมต่อ
 
@@ -59,7 +59,7 @@ Runtime operates in Real Provider Mode. Public observations are requested only a
 
 Each provider should carry provider name, endpoint, terms, coverage, collection method, timestamps, confidence, verification, cache age, and error state. Production ingestion retains auditable raw snapshots and runs idempotent synchronization.
 
-The client first uses the configured Overpass endpoint. If it fails, bounded Photon `/reverse` queries request charging stations, fuel stations, and nearby OSM `amenity`, `shop`, and `tourism` records. Timeouts, result limits, and memory caching keep use modest. Both are shared community/demo services without a production SLA.
+The client first uses the configured Overpass endpoint. If it fails, bounded Photon `/reverse` queries request charging stations, fuel stations, and nearby OSM `amenity`, `shop`, and `tourism` records. The default Photon connection uses a same-origin Next.js route with a tag allowlist, Thailand bounds, radius/result limits, and no user-controlled upstream URL. This resolves browser CORS without creating an arbitrary proxy. Timeouts and caching keep use modest. Both are shared community/demo services without a production SLA.
 
 ### Connected providers
 

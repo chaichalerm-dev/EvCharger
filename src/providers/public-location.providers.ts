@@ -1,6 +1,6 @@
 import type { GeoPoint, MapEntity } from "@/src/domain/models";
 import type { HydrologySnapshot, PopulationSnapshot, PublicLocationContext, TrafficSnapshot, WeatherSnapshot } from "@/src/domain/public-api";
-import { OVERPASS_RESULT_LIMITS, PHOTON_OSM_TAG_GROUPS, PHOTON_RESULT_LIMIT } from "@/src/config/overpass";
+import { DEFAULT_PHOTON_ENDPOINT, OVERPASS_RESULT_LIMITS, PHOTON_OSM_TAG_GROUPS, PHOTON_PROXY_PATH, PHOTON_RESULT_LIMIT } from "@/src/config/overpass";
 import { appendApiKey, getApiConnection, getApiConnectionRevision } from "@/src/services/api-connection.service";
 
 const responseCache = new Map<string, PublicLocationContext>();
@@ -62,9 +62,10 @@ export class PhotonPublicProvider {
   async nearby(point: GeoPoint, radiusKm: number): Promise<MapEntity[]> {
     const connection = getApiConnection("photon");
     if (!connection.enabled) throw new Error("Photon fallback disabled");
-    const endpoint = connection.endpoint.replace(/\/$/, "");
+    const usesDefaultEndpoint = connection.endpoint.replace(/\/$/, "") === DEFAULT_PHOTON_ENDPOINT;
+    const endpoint = usesDefaultEndpoint ? PHOTON_PROXY_PATH : connection.endpoint.replace(/\/$/, "");
     const results = await Promise.allSettled(PHOTON_OSM_TAG_GROUPS.map(async (osmTag) => {
-      const url = new URL(endpoint);
+      const url = new URL(endpoint, window.location.origin);
       url.search = new URLSearchParams({
         lon: String(point.longitude),
         lat: String(point.latitude),

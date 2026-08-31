@@ -79,7 +79,7 @@ The radius is an SVG overlay that projects a geodesic polygon through `map.proje
 
 Exactly one primary selected pin uses a fixed-size native MapLibre marker anchored to longitude/latitude above the 2D/3D canvas. It does not grow when zooming out and naturally leaves the viewport when the map is panned away from that coordinate. The geodesic radius polygon uses a translucent blue fill and high-contrast white/blue double outline.
 
-Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Nearby OSM data uses the configured Overpass endpoint first and bounded Photon queries as fallback. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
+Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Nearby OSM data uses the configured Overpass endpoint first and bounded Photon queries as fallback. The default Photon fallback crosses a restricted same-origin route to avoid browser CORS; it is not a business backend or database. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
 
 ### Layers and symbols
 

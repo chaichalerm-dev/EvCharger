@@ -11,14 +11,14 @@ Dates use ISO format and entries describe user and technical impact.
 - แก้สัญลักษณ์ EV สถานีคู่แข่ง ปั๊มน้ำมัน และ POI รอบพื้นที่วิเคราะห์ไม่ปรากฏ โดยเปลี่ยนเป็น native MapLibre DOM marker ที่ใช้ SVG pictogram และอยู่เหนือชั้นแผนที่ 2D/3D
 - เพิ่ม screen-grid clustering เพื่อลดการทับกันเมื่อซูมออก โดยไอคอนและกลุ่มมีขนาดคงที่บนหน้าจอ และกดกลุ่มเพื่อซูมเข้าได้
 - แสดงสถานะ `รอโหลด` ก่อนกดวิเคราะห์และจำนวนรายการจริงหลังวิเคราะห์ในแผงชั้นข้อมูล
-- เพิ่ม fallback จาก Overpass ไปยัง Photon OSM แบบ bounded queries พร้อม timeout และจำกัดจำนวนผลลัพธ์ เพื่อให้ยังแสดงสถานที่จริงได้เมื่อ shared Overpass ไม่พร้อม
+- เพิ่ม fallback จาก Overpass ไปยัง Photon OSM ผ่าน same-origin route ที่จำกัด tag/ขอบเขตประเทศไทย/รัศมี/จำนวนผลลัพธ์ เพื่อแก้ CORS โดยไม่เปิด arbitrary proxy และยังแสดงสถานที่จริงได้เมื่อ shared Overpass ไม่พร้อม
 
 ### English
 
 - Fixed missing EV, competitor, fuel-station, and POI symbols around the analysis area by rendering native MapLibre DOM markers with SVG pictograms above both 2D and 3D layers.
 - Added screen-grid clustering to prevent overlap at overview zooms. Markers and clusters retain a fixed screen size, and clusters can be clicked to zoom in.
 - Layer controls now show `Pending` before explicit analysis and real result counts afterward.
-- Added bounded failover from Overpass to Photon OSM, request timeouts, and category result limits so real nearby places can still render when shared Overpass is unavailable.
+- Added bounded failover from Overpass to Photon OSM through a same-origin route constrained by tag, Thailand bounds, radius, and result count. This resolves CORS without exposing an arbitrary proxy and keeps real nearby places available when shared Overpass is down.
 
 ## 0.9.4 — 2026-08-31
 

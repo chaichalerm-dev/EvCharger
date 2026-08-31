@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_PHOTON_ENDPOINT } from "@/src/config/overpass";
 
 export type ApiProviderId =
   | "osm-tiles"
@@ -32,7 +33,7 @@ const defaults: Record<ApiProviderId, ApiConnection> = {
   "mapterhorn-terrain": { endpoint: "https://tiles.mapterhorn.com/tilejson.json", token: "", enabled: true, updatedAt: null },
   nominatim: { endpoint: "https://nominatim.openstreetmap.org/search", token: "", enabled: true, updatedAt: null },
   overpass: { endpoint: "https://maps.mail.ru/osm/tools/overpass/api/interpreter", token: "", enabled: true, updatedAt: null },
-  photon: { endpoint: "https://photon.komoot.io/reverse", token: "", enabled: true, updatedAt: null },
+  photon: { endpoint: DEFAULT_PHOTON_ENDPOINT, token: "", enabled: true, updatedAt: null },
   "open-meteo-weather": { endpoint: "https://api.open-meteo.com", token: "", enabled: true, updatedAt: null },
   "open-meteo-elevation": { endpoint: "https://api.open-meteo.com", token: "", enabled: true, updatedAt: null },
   "open-meteo-flood": { endpoint: "https://flood-api.open-meteo.com", token: "", enabled: true, updatedAt: null },
