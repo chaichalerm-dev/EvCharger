@@ -14,12 +14,12 @@ Dates use ISO format and entries describe user and technical impact.
 - เพิ่ม fallback จาก Overpass ไปยัง Photon OSM แบบ bounded queries พร้อม timeout และ result limit เพื่อให้ยังค้นหาสถานที่จริงได้เมื่อ shared Overpass ไม่พร้อม
 
 - แก้โหมด 3D ที่เอียงกล้องแต่ไม่แสดงอาคาร โดยเพิ่ม bounded Overpass building-footprint fallback รอบจุดที่เลือก และสร้าง extrusion จากรูปทรงอาคาร OpenStreetMap จริง
-- เน้นอาคารที่หมุดอยู่ภายในหรืออาคารใกล้ที่สุดด้วยสีฟ้า พร้อมใช้ `height` ก่อน ประมาณจาก `building:levels` เมื่อจำเป็น และระบุใน UI ว่าความสูงที่ขาดเป็นค่าประมาณ
+- เน้นอาคารที่หมุดอยู่ภายในหรืออาคารใกล้ที่สุดด้วยสีฟ้า พร้อมใช้ `height` ก่อน ประมาณจาก `building:levels` เมื่อจำเป็น และใช้ Photon building extent เมื่อ Overpass ไม่มี footprint โดยระบุรูปทรง/ความสูงที่ขาดว่าเป็นค่าประมาณ
 
 ### English
 
 - Fixed 3D mode tilting the camera without showing buildings by adding a bounded Overpass building-footprint fallback around the selected point and extruding real OpenStreetMap geometry.
-- The containing or nearest building is highlighted in cyan. Tagged `height` is preferred, `building:levels` supplies an explainable estimate, and the UI labels missing heights as estimated.
+- The containing or nearest building is highlighted in cyan. Tagged `height` is preferred, `building:levels` supplies an explainable estimate, and Photon building extents are used when Overpass has no footprint. Missing shapes/heights are labeled estimated.
 - Fixed missing EV, competitor, fuel-station, and POI symbols around the analysis area by rendering native MapLibre DOM markers with SVG pictograms above both 2D and 3D layers.
 - Added screen-grid clustering to prevent overlap at overview zooms. Markers and clusters retain a fixed screen size, and clusters can be clicked to zoom in.
 - Layer controls now show `Pending` before explicit analysis and real result counts afterward.

@@ -51,7 +51,7 @@ Prototype ใช้ browser-memory cache และ bounded timeout เพื่�
 
 ### อาคาร 3D จากข้อมูล OSM
 
-OpenFreeMap building tiles เป็นชั้นแรก และ bounded Overpass query สำหรับ `way["building"]` ภายใน 700 เมตรรอบหมุดเป็น fallback โดยจำกัด 450 อาคาร รูปทรงเป็นข้อมูล OSM จริง ค่า `height` ใช้เมื่อมี tag; หากไม่มีจะประมาณจาก `building:levels` หรือใช้ความสูงแสดงผลเริ่มต้น 6.2 เมตร อาคารที่ครอบหมุดหรือใกล้ที่สุดภายใน 120 เมตรจะถูกเน้นสี การแสดงผลนี้ไม่ใช่ผลสำรวจความสูงอาคาร
+OpenFreeMap building tiles เป็นชั้นแรก และ bounded Overpass query สำหรับ `way["building"]` ภายใน 700 เมตรรอบหมุดเป็น fallback โดยจำกัด 450 อาคาร หาก Overpass ไม่มี geometry ระบบใช้ OSM building extent จาก Photon หรือกล่องรอบ centroid เป็น fallback สุดท้าย ค่า `height` ใช้เมื่อมี tag; หากไม่มีจะประมาณจาก `building:levels` หรือใช้ความสูงแสดงผลเริ่มต้น 6.2 เมตร อาคารที่ครอบหมุดหรือใกล้ที่สุดภายใน 120 เมตรจะถูกเน้นสี รูปทรงและความสูงที่ประมาณไม่ใช่ผลสำรวจอาคาร
 
 ---
 
@@ -65,7 +65,7 @@ Each provider should carry provider name, endpoint, terms, coverage, collection 
 
 The client first uses the configured Overpass endpoint. If it fails, bounded Photon `/reverse` queries request charging stations, fuel stations, and nearby OSM `amenity`, `shop`, and `tourism` records. Timeouts, result limits, and memory caching keep use modest. Both are shared community/demo services without a production SLA.
 
-For 3D mode, OpenFreeMap building tiles remain the first layer and a bounded Overpass `way["building"]` query within 700 metres of the selected pin provides a fallback, capped at 450 buildings. Footprints are real OSM geometry. Tagged `height` is preferred; otherwise `building:levels` or a 6.2-metre display default supplies an explicitly estimated extrusion. The containing or nearest building within 120 metres is highlighted. This visualization is not a building-height survey.
+For 3D mode, OpenFreeMap building tiles remain the first layer and a bounded Overpass `way["building"]` query within 700 metres of the selected pin provides a fallback, capped at 450 buildings. If Overpass has no geometry, OSM building extents from Photon—or a small box around the returned centroid—provide the final fallback. Tagged `height` is preferred; otherwise `building:levels` or a 6.2-metre display default supplies an explicitly estimated extrusion. The containing or nearest building within 120 metres is highlighted. Estimated shapes and heights are not survey data.
 
 ### Connected providers
 

@@ -106,6 +106,7 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".map-3d-status")).toBeVisible();
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
   await expect(page.locator(".map-3d-status")).toContainText("2 OSM buildings ready");
+  await expect(page.locator(".map-3d-status")).toContainText("missing shapes/heights are estimated");
   await page.getByRole("button", { name: "Analyze this area" }).click();
   await expect(page.locator(".public-api-card")).toContainText("31°C");
   await expect(page.locator(".public-api-card")).toContainText("4 m");

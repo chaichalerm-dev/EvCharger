@@ -42,4 +42,24 @@ describe("OverpassBuildingFootprintProvider", () => {
     expect(requestBody).toContain("geom");
     expect(requestBody).toContain("450");
   });
+
+  it("uses Photon building extents when Overpass has no footprint geometry", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ elements: [] }) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ features: [{
+          properties: { osm_id: 501, name: "Photon building", extent: [100.6398, 13.6812, 100.6402, 13.6808] },
+          geometry: { type: "Point", coordinates: [100.64, 13.681] },
+        }] }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await new OverpassBuildingFootprintProvider().nearby({ latitude: 13.681, longitude: 100.64 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[1][0])).toContain("osm_tag=building");
+    expect(result.features[0].properties).toMatchObject({ geometrySource: "PHOTON_EXTENT", heightSource: "DEFAULT_ESTIMATE", selected: true });
+    expect(result.features[0].geometry.coordinates[0][0]).toEqual([100.6398, 13.6808]);
+  });
 });

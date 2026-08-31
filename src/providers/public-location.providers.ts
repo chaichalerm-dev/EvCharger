@@ -70,8 +70,7 @@ export class PhotonPublicProvider {
         lat: String(point.latitude),
         radius: String(Math.max(1, Math.min(10, radiusKm))),
         osm_tag: osmTag,
-        limit: String(PHOTON_RESULT_LIMIT),
-        lang: "th"
+        limit: String(PHOTON_RESULT_LIMIT)
       }).toString();
       const response = await fetchWithTimeout(url.toString(), { headers: { Accept: "application/json" } }, 9000);
       if (!response.ok) throw new Error(`Photon ${response.status}`);
