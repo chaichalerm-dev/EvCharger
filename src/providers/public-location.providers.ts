@@ -1,5 +1,6 @@
 import type { GeoPoint, MapEntity } from "@/src/domain/models";
 import type { HydrologySnapshot, PopulationSnapshot, PublicLocationContext, TrafficSnapshot, WeatherSnapshot } from "@/src/domain/public-api";
+import { OVERPASS_RESULT_LIMITS, PHOTON_OSM_TAG_GROUPS, PHOTON_RESULT_LIMIT } from "@/src/config/overpass";
 import { appendApiKey, getApiConnection, getApiConnectionRevision } from "@/src/services/api-connection.service";
 
 const responseCache = new Map<string, PublicLocationContext>();
@@ -28,28 +29,114 @@ interface OverpassElement {
   tags?: Record<string, string>;
 }
 
+interface PhotonFeature {
+  type: "Feature";
+  properties?: {
+    osm_type?: string;
+    osm_id?: number;
+    osm_key?: string;
+    osm_value?: string;
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    district?: string;
+    city?: string;
+    country?: string;
+  };
+  geometry?: { type: "Point"; coordinates: [number, number] };
+}
+
 function entityKind(tags: Record<string, string>): MapEntity["kind"] {
   if (tags.amenity === "charging_station") return "EV_STATION";
   if (tags.amenity === "fuel") return "GAS_STATION";
   return "POI";
 }
 
+function photonEntityKind(osmKey?: string, osmValue?: string): MapEntity["kind"] {
+  if (osmKey === "amenity" && osmValue === "charging_station") return "EV_STATION";
+  if (osmKey === "amenity" && osmValue === "fuel") return "GAS_STATION";
+  return "POI";
+}
+
+export class PhotonPublicProvider {
+  async nearby(point: GeoPoint, radiusKm: number): Promise<MapEntity[]> {
+    const connection = getApiConnection("photon");
+    if (!connection.enabled) throw new Error("Photon fallback disabled");
+    const endpoint = connection.endpoint.replace(/\/$/, "");
+    const results = await Promise.allSettled(PHOTON_OSM_TAG_GROUPS.map(async (osmTag) => {
+      const url = new URL(endpoint);
+      url.search = new URLSearchParams({
+        lon: String(point.longitude),
+        lat: String(point.latitude),
+        radius: String(Math.max(1, Math.min(10, radiusKm))),
+        osm_tag: osmTag,
+        limit: String(PHOTON_RESULT_LIMIT),
+        lang: "th"
+      }).toString();
+      const response = await fetchWithTimeout(url.toString(), { headers: { Accept: "application/json" } }, 9000);
+      if (!response.ok) throw new Error(`Photon ${response.status}`);
+      return response.json() as Promise<{ features?: PhotonFeature[] }>;
+    }));
+    const responses = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    if (!responses.length) throw new Error("All bounded Photon queries failed");
+    const now = new Date().toISOString();
+    const seen = new Set<string>();
+    return responses.flatMap((payload) => payload.features ?? []).flatMap((feature) => {
+      const properties = feature.properties ?? {};
+      const coordinates = feature.geometry?.coordinates;
+      if (!coordinates || !Number.isFinite(coordinates[0]) || !Number.isFinite(coordinates[1])) return [];
+      const sourceId = `${properties.osm_type ?? "feature"}-${properties.osm_id ?? `${coordinates[0]}-${coordinates[1]}`}`;
+      if (seen.has(sourceId)) return [];
+      seen.add(sourceId);
+      const kind = photonEntityKind(properties.osm_key, properties.osm_value);
+      return [{
+        id: `photon-osm-${sourceId}`,
+        kind,
+        name: properties.name || (kind === "EV_STATION" ? "OSM charging station" : kind === "GAS_STATION" ? "OSM fuel station" : "OSM point of interest"),
+        address: [properties.housenumber, properties.street, properties.district, properties.city].filter(Boolean).join(" ") || "Address unavailable",
+        longitude: coordinates[0],
+        latitude: coordinates[1],
+        poiType: kind === "POI" ? properties.osm_value || properties.osm_key || "other" : undefined,
+        provenance: {
+          source: "OpenStreetMap via Photon",
+          sourceUrl: "https://www.openstreetmap.org/",
+          collectedAt: now,
+          lastUpdated: now,
+          confidence: "MEDIUM" as const,
+          verifiedStatus: "APPROXIMATE" as const
+        }
+      } satisfies MapEntity];
+    });
+  }
+}
+
 export class OverpassPublicProvider {
   async nearby(point: GeoPoint, radiusKm: number): Promise<MapEntity[]> {
     const connection = getApiConnection("overpass");
-    if (!connection.enabled) return [];
+    if (!connection.enabled) return new PhotonPublicProvider().nearby(point, radiusKm);
     const radiusMeters = Math.round(Math.max(1, Math.min(10, radiusKm)) * 1000);
     const around = `(around:${radiusMeters},${point.latitude.toFixed(6)},${point.longitude.toFixed(6)})`;
-    const query = `[out:json][timeout:12];(nwr["amenity"="charging_station"]${around};nwr["amenity"="fuel"]${around};nwr["amenity"~"restaurant|hospital|school|university|parking"]${around};nwr["shop"~"mall|supermarket|convenience"]${around};nwr["tourism"~"hotel|attraction"]${around};);out center tags 120;`;
-    const response = await fetchWithTimeout(connection.endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
-      body: new URLSearchParams({ data: query }).toString()
-    }, 14000);
-    if (!response.ok) throw new Error(`Overpass ${response.status}`);
-    const payload = await response.json() as { elements?: OverpassElement[] };
+    const query = `[out:json][timeout:12];nwr["amenity"="charging_station"]${around};out center tags ${OVERPASS_RESULT_LIMITS.evStations};nwr["amenity"="fuel"]${around};out center tags ${OVERPASS_RESULT_LIMITS.gasStations};(nwr["amenity"~"restaurant|hospital|school|university|parking"]${around};nwr["shop"~"mall|supermarket|convenience"]${around};nwr["tourism"~"hotel|attraction"]${around};);out center tags ${OVERPASS_RESULT_LIMITS.pois};`;
+    let elements: OverpassElement[];
+    try {
+      const response = await fetchWithTimeout(connection.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: new URLSearchParams({ data: query }).toString()
+      }, 9000);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json() as { elements?: OverpassElement[] };
+      if (!Array.isArray(payload.elements)) throw new Error("Invalid JSON payload");
+      elements = payload.elements;
+    } catch (overpassError) {
+      try {
+        return await new PhotonPublicProvider().nearby(point, radiusKm);
+      } catch (photonError) {
+        throw new Error(`Nearby OSM providers unavailable (Overpass: ${overpassError instanceof Error ? overpassError.message : "request failed"}; Photon: ${photonError instanceof Error ? photonError.message : "request failed"})`);
+      }
+    }
     const now = new Date().toISOString();
-    return (payload.elements ?? []).flatMap((element) => {
+    return elements.flatMap((element) => {
       const latitude = element.lat ?? element.center?.lat;
       const longitude = element.lon ?? element.center?.lon;
       if (latitude == null || longitude == null) return [];

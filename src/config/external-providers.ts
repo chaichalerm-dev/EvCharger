@@ -74,6 +74,18 @@ export const EXTERNAL_PROVIDERS: ExternalProviderConfig[] = [
     ,runtimeId: "overpass", freeLimit: "Shared public instances; bounded manual queries"
   },
   {
+    id: "photon",
+    name: "Photon (OpenStreetMap)",
+    capability: "Nearby OSM fallback when Overpass is unavailable",
+    status: "CONNECTED",
+    keyRequired: false,
+    prototypeUse: "Bounded, user-triggered category queries with memory caching",
+    productionNote: "Public demo service has no SLA; use a private or contracted instance at scale.",
+    docsUrl: "https://github.com/komoot/photon/blob/master/docs/api-v1.md",
+    runtimeId: "photon",
+    freeLimit: "Reasonable-use demo service; extensive usage may be throttled"
+  },
+  {
     id: "open-meteo",
     name: "Open-Meteo",
     capability: "Weather, elevation and river-discharge context",

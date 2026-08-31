@@ -8,6 +8,8 @@ Runtime ใช้ Real Provider Mode ข้อมูล public observation ถ�
 
 ทุก provider ควรมี metadata: ชื่อ provider, endpoint, license/terms, coverage, วิธีเก็บ, collectedAt, lastUpdated, confidence, verifiedStatus, cache age และ error state Production ingestion ต้องเก็บ raw snapshot ที่ตรวจสอบย้อนกลับได้และทำ sync แบบ idempotent
 
+ระบบใช้ Overpass endpoint ที่ผู้ใช้ตั้งค่าเป็นลำดับแรก หากไม่พร้อมจึงใช้ Photon `/reverse` แบบ bounded radius สำหรับสถานีชาร์จ ปั๊มน้ำมัน และกลุ่ม `amenity`, `shop`, `tourism` ระบบจำกัดเวลาและจำนวนผลลัพธ์ พร้อม cache ในหน่วยความจำ เพื่อไม่สร้างภาระเกินจำเป็น ทั้งสองบริการเป็น shared community/demo infrastructure ไม่มี production SLA
+
 ### Provider ที่เชื่อมต่อ
 
 | Provider | ใช้ทำอะไรในต้นแบบ | Token | ข้อจำกัดสำคัญ |
@@ -16,7 +18,8 @@ Runtime ใช้ Real Provider Mode ข้อมูล public observation ถ�
 | Mapterhorn | terrain DEM และ hillshade 3D | ไม่ต้องใช้ | ความละเอียด terrain โดยประมาณ; ไม่ใช่อาคาร |
 | OpenFreeMap | vector building สำหรับ extrusion 3D | ไม่ต้องใช้ | coverage/height ขึ้นกับข้อมูล OpenStreetMap |
 | Nominatim | ค้นหาสถานที่ในประเทศไทยเมื่อผู้ใช้สั่ง | ไม่ต้องใช้ | public policy จำกัดรูปแบบและอัตราใช้งาน; ไม่ใช้เป็น autocomplete ต่อเนื่อง |
-| Overpass API | EV, fuel และ POI รอบรัศมี | ไม่ต้องใช้ | shared capacity; อาจช้าหรือ partial failure |
+| Overpass API | EV, fuel และ POI รอบรัศมี | ไม่ต้องใช้ | shared capacity ไม่มี SLA; ใช้ configured endpoint แบบมี timeout และ result limit |
+| Photon | OSM amenity/shop/tourism สำรองเมื่อ Overpass ไม่พร้อม | ไม่ต้องใช้ | demo service แบบ reasonable use ไม่มี SLA; bounded manual queries เท่านั้น |
 | Open-Meteo Forecast | weather context | ไม่ต้องใช้สำหรับ public tier ที่รองรับ | ไม่ใช่ข้อมูลรับรองพื้นที่ |
 | Open-Meteo Elevation | elevation โดยประมาณ | ไม่ต้องใช้ | resolution จำกัด; ไม่ใช้แทน survey |
 | Open-Meteo Flood | river-discharge model context | ไม่ต้องใช้ | ไม่ใช่ parcel flood map/certification |
@@ -55,6 +58,8 @@ Prototype ใช้ browser-memory cache และ bounded timeout เพื่�
 Runtime operates in Real Provider Mode. Public observations are requested only after explicit analysis and are not guaranteed real-time, complete, or field-verified. Company data is not fabricated when the Business API is unavailable.
 
 Each provider should carry provider name, endpoint, terms, coverage, collection method, timestamps, confidence, verification, cache age, and error state. Production ingestion retains auditable raw snapshots and runs idempotent synchronization.
+
+The client first uses the configured Overpass endpoint. If it fails, bounded Photon `/reverse` queries request charging stations, fuel stations, and nearby OSM `amenity`, `shop`, and `tourism` records. Timeouts, result limits, and memory caching keep use modest. Both are shared community/demo services without a production SLA.
 
 ### Connected providers
 

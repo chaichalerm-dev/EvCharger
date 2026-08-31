@@ -6,6 +6,7 @@ export type ApiProviderId =
   | "mapterhorn-terrain"
   | "nominatim"
   | "overpass"
+  | "photon"
   | "open-meteo-weather"
   | "open-meteo-elevation"
   | "open-meteo-flood"
@@ -30,7 +31,8 @@ const defaults: Record<ApiProviderId, ApiConnection> = {
   openfreemap: { endpoint: "https://tiles.openfreemap.org/planet", token: "", enabled: true, updatedAt: null },
   "mapterhorn-terrain": { endpoint: "https://tiles.mapterhorn.com/tilejson.json", token: "", enabled: true, updatedAt: null },
   nominatim: { endpoint: "https://nominatim.openstreetmap.org/search", token: "", enabled: true, updatedAt: null },
-  overpass: { endpoint: "https://overpass-api.de/api/interpreter", token: "", enabled: true, updatedAt: null },
+  overpass: { endpoint: "https://maps.mail.ru/osm/tools/overpass/api/interpreter", token: "", enabled: true, updatedAt: null },
+  photon: { endpoint: "https://photon.komoot.io/reverse", token: "", enabled: true, updatedAt: null },
   "open-meteo-weather": { endpoint: "https://api.open-meteo.com", token: "", enabled: true, updatedAt: null },
   "open-meteo-elevation": { endpoint: "https://api.open-meteo.com", token: "", enabled: true, updatedAt: null },
   "open-meteo-flood": { endpoint: "https://flood-api.open-meteo.com", token: "", enabled: true, updatedAt: null },

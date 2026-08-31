@@ -12,7 +12,11 @@
 
 ### Marker บังพื้นที่เมื่อซูมออก
 
-ตรวจ `MAP_MARKER_STYLE` และ zoom expression ห้ามใช้ DOM/CSS scale ที่ผูกกับ perspective โดยไม่ cap Cluster ควรทำงาน และ icon ต้อง viewport-aligned
+ตรวจว่า entity marker ใช้ `.map-entity-marker` ขนาดคงที่และ screen-grid clustering ทำงาน ห้ามผูก CSS scale กับ zoom/perspective โดยไม่มีขอบเขต Marker ต้องยึดพิกัดภูมิศาสตร์และอยู่เหนือ canvas
+
+### วิเคราะห์แล้วไม่เห็นสัญลักษณ์ภายในรัศมี
+
+ก่อนกด `วิเคราะห์พื้นที่นี้` แถว EV/คู่แข่ง/ปั๊มน้ำมัน/POI จะแสดง `รอโหลด` ตามเจตนา หลังวิเคราะห์ให้ดูจำนวนในแต่ละแถว หากมากกว่า 0 ต้องพบ `.map-entity-marker` หรือ `.map-entity-cluster` บนแผนที่ และกดกลุ่มเพื่อซูมดูจุดย่อยได้ หากทุกจำนวนเป็น 0 พร้อมคำเตือน Nearby OSM ให้ตรวจทั้ง Overpass และ Photon endpoint ใน Settings แล้วลองอีกครั้ง ระบบจะ fallback ไป Photon อัตโนมัติเมื่อ Overpass ไม่พร้อม แต่ public services ไม่มีการรับประกัน availability
 
 ### เลือกพิกัดแล้วไม่เห็นหมุดหรือวงรัศมี
 
@@ -71,7 +75,11 @@ Zoom close to the selected point and read the status. Bangkok may be genuinely f
 
 ### Markers cover the map
 
-Verify capped zoom expressions, clustering, and viewport alignment. Avoid unbounded DOM/perspective scaling.
+Verify fixed-size `.map-entity-marker` rendering, screen-grid clustering, and geographic anchoring above the canvas. Avoid unbounded DOM/perspective scaling.
+
+### No symbols appear inside the analysis radius
+
+EV, competitor, fuel, and POI rows intentionally show `Pending` until the user presses **Analyze this area**. After analysis, any non-zero category must render a `.map-entity-marker` or `.map-entity-cluster`; click a cluster to zoom into its members. If all counts remain zero with a Nearby OSM warning, verify both Overpass and Photon endpoints in Settings and retry. The client automatically falls back to bounded Photon queries, but public-service availability is not guaranteed.
 
 ### A selected coordinate has no visible pin or radius
 

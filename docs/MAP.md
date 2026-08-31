@@ -29,7 +29,7 @@ Nominatim search ใช้ country code `TH` และกล้องถูก�
 - เลือกรัศมี 1, 3, 5 หรือ 10 กม. จาก config
 - สร้าง geodesic radius polygon ใน browser สำหรับ prototype
 - ระบุพื้นที่ว่างเป็น optional input
-- กด Analyze เพื่อเรียก Overpass, Open-Meteo, WorldPop และ TomTom เมื่อเปิดใช้งาน
+- กด Analyze เพื่อเรียก Overpass (fallback เป็น Photon OSM), Open-Meteo, WorldPop และ TomTom เมื่อเปิดใช้งาน
 - ผล partial failure แสดงแยก ไม่ทำให้ map crash
 
 งาน production ใช้ PostGIS geography สำหรับ distance/radius และ authoritative boundary แทน browser approximation
@@ -38,7 +38,7 @@ Nominatim search ใช้ country code `TH` และกล้องถูก�
 
 Layer controls มี EV stations, competitors, gas stations, POI, flood, partner branches และ opportunities ทุกแถวมี checkbox, icon, label และสถานะ on/off ป้าย legend บนแผนที่พับเป็นปุ่มเล็กโดยค่าเริ่มต้นและเปิดดู category ทั้งหมดได้
 
-Marker ใช้ Lucide pictogram และสีเป็นสัญญาณรอง ได้แก่ lightning, building, fuel pump, pin, handshake และ target Symbol ใช้ zoom expression ที่จำกัดขนาด: เล็กมากในระดับประเทศ/จังหวัดและค่อยเข้าใกล้ขนาด detail เมื่อซูมเข้า จึงไม่ขยายบังพื้นที่เมื่อซูมออก Cluster badge และ count ใช้หลักเดียวกัน
+ข้อมูลที่ได้หลังผู้ใช้กดวิเคราะห์แสดงเป็น native MapLibre DOM marker พร้อม SVG pictogram ได้แก่ lightning, building, fuel pump, pin และ handshake โดยใช้สีเป็นสัญญาณรอง Marker อยู่เหนือ canvas ทั้ง 2D/3D และมีขนาดคงที่บนหน้าจอ จึงไม่ขยายตามการซูมออก ระบบรวมจุดด้วย screen-grid clustering ตามระดับซูมเพื่อลดการบังพื้นที่ และผู้ใช้กดกลุ่มเพื่อซูมเข้าได้ แถวชั้นข้อมูลแสดง `รอโหลด` ก่อนวิเคราะห์และจำนวนรายการจริงหลังวิเคราะห์
 
 ### 3D terrain และอาคาร
 
@@ -79,11 +79,11 @@ The radius is an SVG overlay that projects a geodesic polygon through `map.proje
 
 Exactly one primary selected pin uses a fixed-size native MapLibre marker anchored to longitude/latitude above the 2D/3D canvas. It does not grow when zooming out and naturally leaves the viewport when the map is panned away from that coordinate. The geodesic radius polygon uses a translucent blue fill and high-contrast white/blue double outline.
 
-Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
+Users search or click, choose a configured radius, optionally enter area, and explicitly Analyze. The prototype builds a browser geodesic polygon and calls enabled providers with isolated failure handling. Nearby OSM data uses the configured Overpass endpoint first and bounded Photon queries as fallback. Production replaces approximate radius work with PostGIS geography and authoritative boundaries.
 
 ### Layers and symbols
 
-Layer controls expose every category with checkbox, icon, label, and on/off state. The on-map legend is collapsed by default. Lucide pictograms carry category meaning, with color as a secondary cue. Capped zoom expressions make markers and clusters small at country/province zoom and only approach detail size when zooming in.
+Layer controls expose every category with checkbox, icon, label, and on/off state. The on-map legend is collapsed by default. After explicit analysis, provider entities render as native MapLibre DOM markers with SVG pictograms above both 2D and 3D canvases. Color is a secondary cue. Fixed-size markers do not grow when zooming out, while screen-grid clustering reduces overlap and lets users click a group to zoom in. Layer rows show `Pending` before analysis and the actual result count afterward.
 
 ### 3D terrain and buildings
 

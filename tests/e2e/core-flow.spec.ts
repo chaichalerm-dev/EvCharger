@@ -49,9 +49,13 @@ test("language and theme controls remain interactive", async ({ page }) => {
 
 test("3D and public location context controls remain usable", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
-  await page.route("**/overpass-api.de/api/interpreter", (route) => route.fulfill({
+  await page.route("**/api/interpreter", (route) => route.fulfill({
     contentType: "application/json",
-    body: JSON.stringify({ elements: [{ type: "node", id: 7, lat: 13.668, lon: 100.636, tags: { amenity: "charging_station", name: "Education test charger" } }] })
+    body: JSON.stringify({ elements: [
+      { type: "node", id: 7, lat: 13.668, lon: 100.636, tags: { amenity: "charging_station", name: "Education test charger" } },
+      { type: "node", id: 8, lat: 13.669, lon: 100.637, tags: { amenity: "fuel", name: "Education test fuel" } },
+      { type: "node", id: 9, lat: 13.671, lon: 100.639, tags: { amenity: "hospital", name: "Education test hospital" } },
+    ] })
   }));
   await page.route("**/api.open-meteo.com/v1/forecast**", (route) => route.fulfill({
     contentType: "application/json",
@@ -100,6 +104,8 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".public-api-card")).toContainText("4 m");
   await expect(page.locator(".public-api-card")).toContainText("3.5 m³/s");
   await expect(page.locator(".public-api-card")).toContainText("not verified parcel-level flood risk");
+  await expect(page.locator(".map-entity-marker, .map-entity-cluster")).not.toHaveCount(0);
+  await expect(page.locator(".layer-panel")).toContainText("1 item");
 });
 
 test("saved dark theme hydrates without breaking controls", async ({ page }) => {

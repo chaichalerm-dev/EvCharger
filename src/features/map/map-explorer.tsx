@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
+import type { ExpressionSpecification, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, ChevronDown, CircleDot, Database, Focus, Fuel,
   Gauge, Handshake, Layers3, LocateFixed, Map as MapIcon, MapPin, Mountain, RefreshCw, Search, Sparkles, Target, Thermometer, Users, Waves, Wind, Zap
@@ -59,15 +59,41 @@ const LAYERS = [
 
 type Candidate = { id: string; label: string; latitude: number; longitude: number; source: "INITIAL" | "OSM" | "MAP" };
 
-function entityCollection(entities: MapEntity[]) {
-  return {
-    type: "FeatureCollection" as const,
-    features: entities.map((entity) => ({
-      type: "Feature" as const,
-      properties: { id: entity.id, name: entity.name, kind: entity.kind, brand: entity.brand ?? "" },
-      geometry: { type: "Point" as const, coordinates: [entity.longitude, entity.latitude] }
-    }))
-  };
+const ENTITY_GLYPH_PATHS: Record<MapEntity["kind"], string[]> = {
+  EV_STATION: ["M13 2 3 14h8l-2 8 12-14h-9z"],
+  COMPETITOR: ["M4 21V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v16", "M8 7h8M8 11h8M9 21v-5h6v5"],
+  GAS_STATION: ["M3 21h12M5 21V4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v17M5 9h9", "M14 7h2l3 3v7a2 2 0 0 0 4 0v-5"],
+  POI: ["M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 1 1 16 0", "M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6"],
+  PARTNER_BRANCH: ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8", "M19 8v6M16 11h6"],
+};
+
+function createEntityGlyph(kind: MapEntity["kind"]) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  for (const pathData of ENTITY_GLYPH_PATHS[kind]) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", pathData);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", "currentColor");
+    path.setAttribute("stroke-width", "2");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(path);
+  }
+  return svg;
+}
+
+function groupEntitiesByScreenCell(map: MapLibreMap, entities: MapEntity[]) {
+  const zoom = map.getZoom();
+  const cellSize = zoom < 10 ? 92 : zoom < 13 ? 72 : zoom < 15 ? 52 : 36;
+  const groups = new Map<string, MapEntity[]>();
+  for (const entity of entities) {
+    const point = map.project([entity.longitude, entity.latitude]);
+    const key = `${Math.floor(point.x / cellSize)}:${Math.floor(point.y / cellSize)}`;
+    groups.set(key, [...(groups.get(key) ?? []), entity]);
+  }
+  return [...groups.values()];
 }
 
 function zoomScaledValue(value: { overview: number; normal: number; detail: number }): ExpressionSpecification {
@@ -89,7 +115,7 @@ function projectRadiusPoints(map: MapLibreMap, location: { longitude: number; la
 }
 
 function firstMapOverlayLayer(map: MapLibreMap) {
-  return ["opportunity-clusters", "entity-clusters"]
+  return ["opportunity-clusters"]
     .find((layerId) => map.getLayer(layerId));
 }
 
@@ -155,6 +181,9 @@ export function MapExplorer() {
   const selectedMarkerRef = useRef<MapLibreMarker | null>(null);
   const radiusOverlayRef = useRef<SVGSVGElement | null>(null);
   const radiusOverlayUpdaterRef = useRef<(() => void) | null>(null);
+  const entityMarkersRef = useRef<MapLibreMarker[]>([]);
+  const visibleEntitiesRef = useRef<MapEntity[]>([]);
+  const renderEntityMarkersRef = useRef<(() => void) | null>(null);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
   const locationRef = useRef<Candidate>(INITIAL_LOCATION);
   const [radius, setRadius] = useState<number>(3);
@@ -201,6 +230,12 @@ export function MapExplorer() {
     gasStations: publicContext?.osmEntities.filter((entity) => entity.kind === "GAS_STATION").length ?? 0,
     pois: publicContext?.osmEntities.filter((entity) => entity.kind === "POI").length ?? 0
   }), [publicContext]);
+  const publicLayerCounts = useMemo<Record<string, number | null>>(() => ({
+    EV_STATION: publicContext ? publicCounts.evStations : null,
+    COMPETITOR: publicContext ? analysis.counts.competitors : null,
+    GAS_STATION: publicContext ? publicCounts.gasStations : null,
+    POI: publicContext ? publicCounts.pois : null,
+  }), [analysis.counts.competitors, publicContext, publicCounts]);
 
   const chooseLocation = (candidate: Candidate, origin: MapSelectionOrigin = "SEARCH") => {
     locationRef.current = candidate;
@@ -246,7 +281,7 @@ export function MapExplorer() {
       return;
     }
     const applyMode = () => {
-      if (!map.getLayer("entity-points")) return false;
+      if (!map.getLayer("opportunity-points")) return false;
       if (next) {
         let terrainEnabled = false;
         let buildingsEnabled = false;
@@ -360,6 +395,49 @@ export function MapExplorer() {
     map.on("move", updateRadiusOverlay);
     map.on("resize", updateRadiusOverlay);
     updateRadiusOverlay();
+
+    const renderEntityMarkers = () => {
+      entityMarkersRef.current.forEach((marker) => marker.remove());
+      entityMarkersRef.current = [];
+      const entities = visibleEntitiesRef.current;
+      if (!entities.length) return;
+      const groups = groupEntitiesByScreenCell(map, entities);
+      entityMarkersRef.current = groups.map((group) => {
+        const longitude = group.reduce((total, entity) => total + entity.longitude, 0) / group.length;
+        const latitude = group.reduce((total, entity) => total + entity.latitude, 0) / group.length;
+        if (group.length > 1) {
+          const clusterButton = document.createElement("button");
+          clusterButton.type = "button";
+          clusterButton.className = "map-entity-cluster";
+          clusterButton.textContent = String(group.length);
+          clusterButton.setAttribute("aria-label", languageRef.current === "th" ? `กลุ่มสถานที่ ${group.length} จุด` : `${group.length} nearby locations`);
+          clusterButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            map.easeTo({ center: [longitude, latitude], zoom: Math.min(map.getZoom() + 2, 17), duration: 450 });
+          });
+          return new maplibregl.Marker({ element: clusterButton, anchor: "center", pitchAlignment: "viewport", rotationAlignment: "viewport" })
+            .setLngLat([longitude, latitude]).addTo(map);
+        }
+        const entity = group[0];
+        const markerButton = document.createElement("button");
+        markerButton.type = "button";
+        markerButton.className = "map-entity-marker";
+        markerButton.dataset.kind = entity.kind;
+        markerButton.appendChild(createEntityGlyph(entity.kind));
+        const markerLabel = `${entity.name}${entity.brand ? ` · ${entity.brand}` : ""}`;
+        markerButton.setAttribute("aria-label", markerLabel);
+        markerButton.title = markerLabel;
+        markerButton.addEventListener("click", (event) => {
+          event.stopPropagation();
+          new maplibregl.Popup({ offset: 18 }).setLngLat([entity.longitude, entity.latitude]).setText(markerLabel).addTo(map);
+        });
+        return new maplibregl.Marker({ element: markerButton, anchor: "center", pitchAlignment: "viewport", rotationAlignment: "viewport" })
+          .setLngLat([entity.longitude, entity.latitude]).addTo(map);
+      });
+    };
+    renderEntityMarkersRef.current = renderEntityMarkers;
+    map.on("moveend", renderEntityMarkers);
+    map.on("zoomend", renderEntityMarkers);
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
@@ -387,7 +465,7 @@ export function MapExplorer() {
       }
     });
     map.on("style.load", () => {
-      if (map.getSource("entities")) {
+      if (map.getSource("opportunities")) {
         setMapReady(true);
         return;
       }
@@ -400,18 +478,8 @@ export function MapExplorer() {
       map.addLayer({ id: "opportunity-clusters", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.clusterIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": zoomScaledValue(MAP_MARKER_STYLE.clusterTextSize), "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
       map.addLayer({ id: "opportunity-points", type: "symbol", source: "opportunities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": "marker-opportunity", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.opportunityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
 
-      map.addSource("entities", { type: "geojson", data: entityCollection([]), cluster: true, clusterRadius: 28, clusterMaxZoom: 13 });
-      map.addLayer({ id: "entity-clusters", type: "symbol", source: "entities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.clusterIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": zoomScaledValue(MAP_MARKER_STYLE.clusterTextSize), "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
-      map.addLayer({ id: "entity-points", type: "symbol", source: "entities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": ["match", ["get", "kind"], "EV_STATION", "marker-ev", "COMPETITOR", "marker-competitor", "GAS_STATION", "marker-gas", "POI", "marker-poi", "marker-partner"], "icon-size": zoomScaledValue(MAP_MARKER_STYLE.entityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
-
-      map.on("click", "entity-points", (event) => {
-        const feature = event.features?.[0];
-        if (!feature || feature.geometry.type !== "Point") return;
-        const coordinates = feature.geometry.coordinates as [number, number];
-        new maplibregl.Popup({ offset: 12 }).setLngLat(coordinates).setText(`${feature.properties?.name}${feature.properties?.brand ? ` · ${feature.properties.brand}` : ""}`).addTo(map);
-      });
       map.on("click", (event) => {
-        const hits = map.queryRenderedFeatures(event.point, { layers: ["opportunity-points", "entity-points"] });
+        const hits = map.queryRenderedFeatures(event.point, { layers: ["opportunity-points"] });
         if (hits.length) return;
         chooseLocation({
           id: `map-${event.lngLat.lat.toFixed(5)}-${event.lngLat.lng.toFixed(5)}`,
@@ -440,6 +508,10 @@ export function MapExplorer() {
       radiusOverlayUpdaterRef.current = null;
       selectedMarkerRef.current?.remove();
       selectedMarkerRef.current = null;
+      entityMarkersRef.current.forEach((marker) => marker.remove());
+      entityMarkersRef.current = [];
+      visibleEntitiesRef.current = [];
+      renderEntityMarkersRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -463,13 +535,14 @@ export function MapExplorer() {
     if (!map) return;
     const enabledEntityKinds = new Set(Object.entries(layerState).filter(([, enabled]) => enabled).map(([id]) => id));
     const entities = (publicContext?.osmEntities ?? []).filter((entity) => enabledEntityKinds.has(entity.kind));
-    (map.getSource("entities") as GeoJSONSource | undefined)?.setData(entityCollection(entities));
+    visibleEntitiesRef.current = entities;
+    renderEntityMarkersRef.current?.();
     const opportunityVisibility = layerState.OPPORTUNITY ? "visible" : "none";
     ["opportunity-points", "opportunity-clusters"].forEach((id) => {
       if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", opportunityVisibility);
     });
     radiusOverlayRef.current?.classList.toggle("show-flood-risk", layerState.FLOOD);
-  }, [layerState, publicContext]);
+  }, [language, layerState, publicContext]);
 
   const t = {
     title: language === "th" ? "ค้นหาพื้นที่ที่สนใจ" : "Find a location",
@@ -532,7 +605,7 @@ export function MapExplorer() {
         <section className="layer-panel" aria-labelledby="map-layers-title">
           <div className="layer-panel-heading"><strong id="map-layers-title"><Layers3 />{language === "th" ? "ชั้นข้อมูลบนแผนที่" : "Map layers"}</strong><span>{Object.values(layerState).filter(Boolean).length}/{LAYERS.length}</span></div>
           <p className="layer-hint">{language === "th" ? "ไอคอนเดียวกับที่แสดงบนแผนที่" : "Icons match the symbols shown on the map"}</p>
-          <div className="layer-list">{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; return <label className={`layer-row ${enabled ? "enabled" : "disabled"}`} key={layer.id}><input type="checkbox" checked={enabled} onChange={() => setLayerState((current) => ({ ...current, [layer.id]: !current[layer.id] }))} /><span className="layer-icon" style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></span><span className="layer-name">{language === "th" ? layer.labelTh : layer.label}</span><small>{enabled ? (language === "th" ? "แสดง" : "On") : (language === "th" ? "ซ่อน" : "Off")}</small></label>; })}</div>
+          <div className="layer-list">{LAYERS.map((layer) => { const enabled = layerState[layer.id]; const LayerIcon = layer.icon; const count = publicLayerCounts[layer.id]; const countLabel = count == null ? (language === "th" ? "รอโหลด" : "Pending") : language === "th" ? `${count} จุด` : `${count} items`; return <label className={`layer-row ${enabled ? "enabled" : "disabled"}`} key={layer.id}><input type="checkbox" checked={enabled} onChange={() => setLayerState((current) => ({ ...current, [layer.id]: !current[layer.id] }))} /><span className="layer-icon" style={{ color: layer.color }}><LayerIcon aria-hidden="true" /></span><span className="layer-name">{language === "th" ? layer.labelTh : layer.label}</span><small>{enabled ? (layer.id in publicLayerCounts ? countLabel : (language === "th" ? "แสดง" : "On")) : (language === "th" ? "ซ่อน" : "Off")}</small></label>; })}</div>
         </section>
       </aside>
 
@@ -588,7 +661,7 @@ export function MapExplorer() {
               <AlertTriangle /><span>{language === "th" ? "ค่าการไหลของแม่น้ำเป็นข้อมูลแบบจำลองความละเอียดประมาณ 5 กม. ไม่ใช่ผลยืนยันความเสี่ยงน้ำท่วมของแปลงที่ดิน" : "River flow is an approximately 5 km model context, not verified parcel-level flood risk."}</span>
             </div>
             {publicContext.errors.length > 0 && <p className="api-errors">{publicContext.errors.join(" · ")}</p>}
-            <small className="api-provenance">OpenStreetMap / Overpass · Open-Meteo · WorldPop · TomTom · {publicContext.cached ? "Cached response" : new Date(publicContext.fetchedAt).toLocaleString(language === "th" ? "th-TH" : "en-GB")}</small>
+            <small className="api-provenance">OpenStreetMap / Overpass / Photon · Open-Meteo · WorldPop · TomTom · {publicContext.cached ? "Cached response" : new Date(publicContext.fetchedAt).toLocaleString(language === "th" ? "th-TH" : "en-GB")}</small>
           </>}
         </section>
 

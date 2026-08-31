@@ -1,9 +1,30 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getPublicLocationContext } from "@/src/providers/public-location.providers";
+import { getPublicLocationContext, OverpassPublicProvider } from "@/src/providers/public-location.providers";
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe("public location providers", () => {
+  it("falls back to bounded Photon OSM queries when the configured Overpass endpoint is busy", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 504, json: async () => ({}) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ features: [{ type: "Feature", properties: { osm_type: "N", osm_id: 77, osm_key: "amenity", osm_value: "fuel", name: "Fuel test" }, geometry: { type: "Point", coordinates: [100.64, 13.68] } }] })
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ features: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ features: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ features: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ features: [] }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const entities = await new OverpassPublicProvider().nearby({ latitude: 13.68, longitude: 100.64 }, 3);
+
+    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(entities).toHaveLength(1);
+    expect(entities[0]).toMatchObject({ kind: "GAS_STATION", name: "Fuel test" });
+    expect(String(fetchMock.mock.calls[1][0])).toContain("photon.komoot.io/reverse");
+  });
+
   it("combines partial provider success without crashing the map", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ elements: [] }) })
