@@ -49,6 +49,7 @@ test("language and theme controls remain interactive", async ({ page }) => {
 
 test("3D and public location context controls remain usable", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
+  await page.route("https://tiles.openfreemap.org/**", (route) => route.abort());
   await page.route("**/api/interpreter", (route) => {
     const isBuildingRequest = route.request().postData()?.includes('way%5B%22building%22%5D') ?? false;
     return route.fulfill({
@@ -107,7 +108,8 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", "2");
   await expect(page.locator(".map-3d-status")).toContainText("2 OSM buildings ready");
-  await expect(page.locator(".map-3d-status")).toContainText("missing shapes/heights are estimated");
+  await expect(page.locator(".map-3d-status")).toContainText("one non-overlapping 3D source");
+  await expect(page.locator(".map-building-block")).toHaveCount(0);
   await page.getByRole("button", { name: "Analyze this area" }).click();
   await expect(page.locator(".public-api-card")).toContainText("31°C");
   await expect(page.locator(".public-api-card")).toContainText("4 m");

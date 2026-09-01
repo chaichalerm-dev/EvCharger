@@ -11,7 +11,7 @@ import { MAP_MARKER_STYLE, THAILAND_MAP_VIEW } from "@/src/config/geography";
 import type { MapEntity } from "@/src/domain/models";
 import type { PublicLocationContext } from "@/src/domain/public-api";
 import { NominatimGeocodingProvider } from "@/src/providers/nominatim-geocoding.provider";
-import { OverpassBuildingFootprintProvider, type BuildingFootprintCollection } from "@/src/providers/osm-building.provider";
+import { OverpassBuildingFootprintProvider } from "@/src/providers/osm-building.provider";
 import { getPublicLocationContext } from "@/src/providers/public-location.providers";
 import { getApiConnection } from "@/src/services/api-connection.service";
 import { analyzeRealLocation } from "@/src/services/location-analysis.service";
@@ -178,23 +178,19 @@ function ensure3DBuildings(map: MapLibreMap) {
 
 function rendered3DBuildingCount(map: MapLibreMap) {
   return ["osm-buildings-3d", "3d-buildings"].reduce((total, layerId) => (
-    total + (map.getLayer(layerId) ? map.queryRenderedFeatures({ layers: [layerId] }).length : 0)
+    total + (map.getLayer(layerId) && map.getLayoutProperty(layerId, "visibility") !== "none"
+      ? map.queryRenderedFeatures({ layers: [layerId] }).length
+      : 0)
   ), 0);
 }
 
-function buildingCenter(feature: BuildingFootprintCollection["features"][number]) {
-  const ring = feature.geometry.coordinates[0].slice(0, -1);
-  return ring.reduce((center, [longitude, latitude]) => ({
-    longitude: center.longitude + longitude / ring.length,
-    latitude: center.latitude + latitude / ring.length,
-  }), { longitude: 0, latitude: 0 });
-}
-
-function buildingDistanceSquared(feature: BuildingFootprintCollection["features"][number], point: Candidate) {
-  const center = buildingCenter(feature);
-  const latitudeDistance = (center.latitude - point.latitude) * 111_320;
-  const longitudeDistance = (center.longitude - point.longitude) * 111_320 * Math.cos(point.latitude * Math.PI / 180);
-  return latitudeDistance ** 2 + longitudeDistance ** 2;
+function setBuildingLayerMode(map: MapLibreMap, mode: "NONE" | "VECTOR" | "GEOJSON") {
+  if (map.getLayer("3d-buildings")) {
+    map.setLayoutProperty("3d-buildings", "visibility", mode === "VECTOR" ? "visible" : "none");
+  }
+  if (map.getLayer("osm-buildings-3d")) {
+    map.setLayoutProperty("osm-buildings-3d", "visibility", mode === "GEOJSON" ? "visible" : "none");
+  }
 }
 
 export function MapExplorer() {
@@ -204,11 +200,11 @@ export function MapExplorer() {
   const radiusOverlayRef = useRef<SVGSVGElement | null>(null);
   const radiusOverlayUpdaterRef = useRef<(() => void) | null>(null);
   const entityMarkersRef = useRef<MapLibreMarker[]>([]);
-  const buildingMarkersRef = useRef<MapLibreMarker[]>([]);
   const visibleEntitiesRef = useRef<MapEntity[]>([]);
   const renderEntityMarkersRef = useRef<(() => void) | null>(null);
   const loadBuildingFootprintsRef = useRef<((candidate: Candidate) => Promise<void>) | null>(null);
-  const renderBuildingFallbackRef = useRef<((collection: BuildingFootprintCollection, point: Candidate) => void) | null>(null);
+  const buildingFallbackTimerRef = useRef<number | null>(null);
+  const buildingFallbackLoadingRef = useRef(false);
   const buildingRequestSequenceRef = useRef(0);
   const threeDBuildingCountRef = useRef(0);
   const [location, setLocation] = useState<Candidate>(INITIAL_LOCATION);
@@ -269,54 +265,77 @@ export function MapExplorer() {
   const loadBuildingFootprints = async (candidate: Candidate) => {
     const map = mapRef.current;
     const source = map?.getSource("osm-building-footprints") as GeoJSONSource | undefined;
-    if (!map || !source || !is3DRef.current) return;
+    if (!map || !source || !is3DRef.current || buildingFallbackLoadingRef.current) return;
+    buildingFallbackLoadingRef.current = true;
     const requestSequence = ++buildingRequestSequenceRef.current;
     source.setData({ type: "FeatureCollection", features: [] });
-    buildingMarkersRef.current.forEach((marker) => marker.remove());
-    buildingMarkersRef.current = [];
     threeDBuildingCountRef.current = 0;
     setThreeDBuildingCount(0);
     setThreeDStatus("LOADING");
-    if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", "visible");
     try {
       const collection = await buildingProvider.nearby({ latitude: candidate.latitude, longitude: candidate.longitude });
       if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
       source.setData(collection);
       threeDBuildingCountRef.current = collection.features.length;
       setThreeDBuildingCount(collection.features.length);
-      if (map.getLayer("osm-buildings-footprints")) map.setLayoutProperty("osm-buildings-footprints", "visibility", collection.features.length ? "visible" : "none");
-      if (map.getLayer("osm-buildings-3d")) map.setLayoutProperty("osm-buildings-3d", "visibility", collection.features.length ? "visible" : "none");
       if (collection.features.length) {
-        // MapLibre fill extrusions can be depth-occluded by raster terrain because
-        // GeoJSON building bases are expressed from ground level (0 m). For dense
-        // urban analysis, prefer visible building massing and keep terrain as the
-        // fallback for locations where no building geometry is available.
+        // Only one building source may paint at a time. This bounded GeoJSON
+        // extrusion is used only after the vector-tile layer failed or returned
+        // no visible buildings, so it cannot overlap the primary geometry.
+        setBuildingLayerMode(map, "GEOJSON");
         map.setTerrain(null);
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
-        if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", "none");
         setThreeDStatus("READY");
-        // A bounded DOM building layer sits above the WebGL canvas as a dependable
-        // visual aid. It keeps nearby OSM buildings visible on production devices
-        // whose WebGL driver accepts source data but does not paint extrusions.
-        const renderBuildingBlocks = () => {
-          if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
-          renderBuildingFallbackRef.current?.(collection, candidate);
-        };
-        map.once("idle", renderBuildingBlocks);
-        window.setTimeout(renderBuildingBlocks, 900);
       } else {
+        setBuildingLayerMode(map, "NONE");
         try { ensure3DTerrain(map); } catch (error) { console.warn("Unable to restore Mapterhorn terrain", error); }
         setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
       }
     } catch (error) {
       if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
       console.warn("Unable to load bounded OSM building footprints", error);
-      setThreeDStatus(rendered3DBuildingCount(map) > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+      const vectorBuildingCount = rendered3DBuildingCount(map);
+      if (vectorBuildingCount > 0) {
+        setThreeDBuildingCount(vectorBuildingCount);
+        setThreeDStatus("READY");
+      } else {
+        setBuildingLayerMode(map, "NONE");
+        try { ensure3DTerrain(map); } catch (terrainError) { console.warn("Unable to restore Mapterhorn terrain", terrainError); }
+        setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+      }
+    } finally {
+      if (requestSequence === buildingRequestSequenceRef.current) buildingFallbackLoadingRef.current = false;
     }
   };
   useEffect(() => {
     loadBuildingFootprintsRef.current = loadBuildingFootprints;
   });
+
+  const scheduleBuildingFallback = (candidate: Candidate) => {
+    const map = mapRef.current;
+    if (!map || !is3DRef.current) return;
+    if (buildingFallbackTimerRef.current != null) window.clearTimeout(buildingFallbackTimerRef.current);
+    buildingRequestSequenceRef.current += 1;
+    buildingFallbackLoadingRef.current = false;
+    const fallbackSource = map.getSource("osm-building-footprints") as GeoJSONSource | undefined;
+    fallbackSource?.setData({ type: "FeatureCollection", features: [] });
+    threeDBuildingCountRef.current = 0;
+    setThreeDBuildingCount(0);
+    setThreeDStatus("LOADING");
+    setBuildingLayerMode(map, "VECTOR");
+    buildingFallbackTimerRef.current = window.setTimeout(() => {
+      buildingFallbackTimerRef.current = null;
+      if (!is3DRef.current) return;
+      const visibleBuildingCount = rendered3DBuildingCount(map);
+      if (visibleBuildingCount > 0) {
+        threeDBuildingCountRef.current = visibleBuildingCount;
+        setThreeDBuildingCount(visibleBuildingCount);
+        setThreeDStatus("READY");
+        return;
+      }
+      void loadBuildingFootprintsRef.current?.(candidate);
+    }, 3_000);
+  };
 
   const chooseLocation = (candidate: Candidate, origin: MapSelectionOrigin = "SEARCH") => {
     locationRef.current = candidate;
@@ -325,7 +344,7 @@ export function MapExplorer() {
     setQuery("");
     setRemoteResults([]);
     setSearchMessage(languageRef.current === "th" ? "เลือกพื้นที่แล้ว — เลือกรัศมี แล้วกดวิเคราะห์พื้นที่นี้" : "Location selected — choose a radius, then analyze this area");
-    if (is3DRef.current) void loadBuildingFootprintsRef.current?.(candidate);
+    if (is3DRef.current) scheduleBuildingFallback(candidate);
     if (shouldRecenterForSelection(origin)) {
       mapRef.current?.easeTo({
         center: [candidate.longitude, candidate.latitude],
@@ -365,30 +384,42 @@ export function MapExplorer() {
     const applyMode = () => {
       if (!map.getLayer("opportunity-points")) return false;
       if (next) {
-        let terrainEnabled = false;
         let buildingsEnabled = false;
-        try { terrainEnabled = ensure3DTerrain(map); } catch (error) { console.warn("Unable to enable Mapterhorn terrain", error); }
         try { buildingsEnabled = ensure3DBuildings(map); } catch (error) { console.warn("Unable to enable OpenFreeMap buildings", error); }
         const firstOverlayLayer = firstMapOverlayLayer(map);
-        if (map.getLayer("osm-buildings-footprints") && firstOverlayLayer) map.moveLayer("osm-buildings-footprints", firstOverlayLayer);
         if (map.getLayer("osm-buildings-3d") && firstOverlayLayer) map.moveLayer("osm-buildings-3d", firstOverlayLayer);
-        if (!terrainEnabled && !buildingsEnabled) {
+        if (buildingsEnabled) {
+          // Building extrusions and raster terrain compete for the same depth
+          // buffer on some production GPUs. Start with the authoritative vector
+          // buildings; terrain is a fallback only when no building geometry loads.
+          map.setTerrain(null);
+          if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
+          setBuildingLayerMode(map, "VECTOR");
+        } else {
+          let terrainEnabled = false;
+          try { terrainEnabled = ensure3DTerrain(map); } catch (error) { console.warn("Unable to enable Mapterhorn terrain", error); }
+          setBuildingLayerMode(map, "NONE");
+          if (!terrainEnabled) {
+            setThreeDStatus("UNAVAILABLE");
+            return false;
+          }
+        }
+        if (!buildingsEnabled && !map.getTerrain()?.source) {
           setThreeDStatus("UNAVAILABLE");
           return false;
         }
-        void loadBuildingFootprints(locationRef.current);
+        if (buildingsEnabled) scheduleBuildingFallback(locationRef.current);
       } else {
+        if (buildingFallbackTimerRef.current != null) window.clearTimeout(buildingFallbackTimerRef.current);
+        buildingFallbackTimerRef.current = null;
         buildingRequestSequenceRef.current += 1;
-        buildingMarkersRef.current.forEach((marker) => marker.remove());
-        buildingMarkersRef.current = [];
+        buildingFallbackLoadingRef.current = false;
         threeDBuildingCountRef.current = 0;
         setThreeDBuildingCount(0);
         map.setTerrain(null);
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
+        setBuildingLayerMode(map, "NONE");
       }
-      if (map.getLayer("3d-buildings")) map.setLayoutProperty("3d-buildings", "visibility", next ? "visible" : "none");
-      if (map.getLayer("osm-buildings-footprints")) map.setLayoutProperty("osm-buildings-footprints", "visibility", next ? "visible" : "none");
-      if (map.getLayer("osm-buildings-3d")) map.setLayoutProperty("osm-buildings-3d", "visibility", next ? "visible" : "none");
       map.easeTo({
         center: [location.longitude, location.latitude],
         pitch: next ? 65 : 0,
@@ -528,31 +559,6 @@ export function MapExplorer() {
           .setLngLat([entity.longitude, entity.latitude]).addTo(map);
       });
     };
-    const renderBuildingFallback = (collection: BuildingFootprintCollection, point: Candidate) => {
-      buildingMarkersRef.current.forEach((marker) => marker.remove());
-      buildingMarkersRef.current = [];
-      const nearbyBuildings = [...collection.features]
-        .sort((left, right) => {
-          if (left.properties.selected !== right.properties.selected) return left.properties.selected ? -1 : 1;
-          return buildingDistanceSquared(left, point) - buildingDistanceSquared(right, point);
-        })
-        .slice(0, 18);
-      buildingMarkersRef.current = nearbyBuildings.map((feature) => {
-        const center = buildingCenter(feature);
-        const markerElement = document.createElement("div");
-        markerElement.className = `map-building-block${feature.properties.selected ? " selected" : ""}`;
-        markerElement.setAttribute("role", "img");
-        markerElement.setAttribute("aria-label", languageRef.current === "th"
-          ? `อาคารประมาณการ ${feature.properties.name}`
-          : `Estimated building ${feature.properties.name}`);
-        markerElement.title = feature.properties.name;
-        markerElement.appendChild(document.createElement("span"));
-        return new maplibregl.Marker({ element: markerElement, anchor: "bottom", pitchAlignment: "viewport", rotationAlignment: "viewport" })
-          .setLngLat([center.longitude, center.latitude])
-          .addTo(map);
-      });
-    };
-    renderBuildingFallbackRef.current = renderBuildingFallback;
     renderEntityMarkersRef.current = renderEntityMarkers;
     map.on("moveend", renderEntityMarkers);
     map.on("zoomend", renderEntityMarkers);
@@ -560,7 +566,12 @@ export function MapExplorer() {
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
     map.on("error", (event) => {
       const message = String(event.error?.message ?? "").toLowerCase();
-      if (message.includes("openfreemap")) setThreeDStatus(rendered3DBuildingCount(map) > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+      if (message.includes("openfreemap") && is3DRef.current
+        && map.getLayoutProperty("osm-buildings-3d", "visibility") !== "visible") {
+        if (buildingFallbackTimerRef.current != null) window.clearTimeout(buildingFallbackTimerRef.current);
+        buildingFallbackTimerRef.current = null;
+        void loadBuildingFootprintsRef.current?.(locationRef.current);
+      }
       else if (message.includes("mapterhorn")) {
         const hasBuildings = rendered3DBuildingCount(map) > 0;
         setThreeDStatus(hasBuildings ? "READY" : "UNAVAILABLE");
@@ -573,13 +584,29 @@ export function MapExplorer() {
       if (is3DRef.current) {
         const featureCount = rendered3DBuildingCount(map);
         const terrainConfigured = Boolean(map.getTerrain()?.source);
-        setThreeDStatus(threeDBuildingCountRef.current > 0 || featureCount > 0 ? "READY" : terrainConfigured ? "TERRAIN_ONLY" : "UNAVAILABLE");
+        if (featureCount > 0) {
+          if (buildingFallbackTimerRef.current != null) window.clearTimeout(buildingFallbackTimerRef.current);
+          buildingFallbackTimerRef.current = null;
+          threeDBuildingCountRef.current = featureCount;
+          setThreeDBuildingCount(featureCount);
+          setThreeDStatus("READY");
+        } else if (threeDBuildingCountRef.current > 0) {
+          setThreeDStatus("READY");
+        } else if (terrainConfigured) {
+          setThreeDStatus("TERRAIN_ONLY");
+        }
       }
     });
     map.on("sourcedata", (event) => {
-      if (["openfreemap-buildings", "osm-building-footprints"].includes(event.sourceId) && event.isSourceLoaded) {
+      if (["openfreemap-buildings", "osm-building-footprints"].includes(event.sourceId) && event.isSourceLoaded && is3DRef.current) {
         const featureCount = rendered3DBuildingCount(map);
-        setThreeDStatus(threeDBuildingCountRef.current > 0 || featureCount > 0 ? "READY" : map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+        if (featureCount > 0) {
+          if (buildingFallbackTimerRef.current != null) window.clearTimeout(buildingFallbackTimerRef.current);
+          buildingFallbackTimerRef.current = null;
+          threeDBuildingCountRef.current = featureCount;
+          setThreeDBuildingCount(featureCount);
+          setThreeDStatus("READY");
+        }
       }
     });
     map.on("style.load", () => {
@@ -596,17 +623,6 @@ export function MapExplorer() {
       map.addLayer({ id: "opportunity-clusters", type: "symbol", source: "opportunities", filter: ["has", "point_count"], layout: { "icon-image": "marker-cluster", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.clusterIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "text-field": ["get", "point_count_abbreviated"], "text-size": zoomScaledValue(MAP_MARKER_STYLE.clusterTextSize), "text-allow-overlap": true, "text-pitch-alignment": "viewport" }, paint: { "text-color": "#fff" } });
       map.addLayer({ id: "opportunity-points", type: "symbol", source: "opportunities", filter: ["!", ["has", "point_count"]], layout: { "icon-image": "marker-opportunity", "icon-size": zoomScaledValue(MAP_MARKER_STYLE.opportunityIconScale), "icon-pitch-alignment": "viewport", "icon-rotation-alignment": "viewport", "icon-allow-overlap": false } });
       map.addSource("osm-building-footprints", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-      map.addLayer({
-        id: "osm-buildings-footprints",
-        type: "fill",
-        source: "osm-building-footprints",
-        minzoom: 13,
-        layout: { visibility: "none" },
-        paint: {
-          "fill-color": ["case", ["==", ["get", "selected"], true], "#00d8ff", "#1476ad"],
-          "fill-opacity": 0.48,
-        },
-      }, "opportunity-clusters");
       map.addLayer({
         id: "osm-buildings-3d",
         type: "fill-extrusion",
@@ -654,11 +670,11 @@ export function MapExplorer() {
       selectedMarkerRef.current = null;
       entityMarkersRef.current.forEach((marker) => marker.remove());
       entityMarkersRef.current = [];
-      buildingMarkersRef.current.forEach((marker) => marker.remove());
-      buildingMarkersRef.current = [];
+      if (buildingFallbackTimerRef.current != null) window.clearTimeout(buildingFallbackTimerRef.current);
+      buildingFallbackTimerRef.current = null;
+      buildingFallbackLoadingRef.current = false;
       visibleEntitiesRef.current = [];
       renderEntityMarkersRef.current = null;
-      renderBuildingFallbackRef.current = null;
       mapRef.current?.remove();
       mapRef.current = null;
     };
@@ -767,7 +783,7 @@ export function MapExplorer() {
         {tileWarning && <div className="tile-warning"><AlertTriangle />{language === "th" ? "แผนที่ถนนออนไลน์ไม่พร้อม — ยังเลือกจุดบนแผนที่สาธิตได้" : "Online road tiles unavailable — demo map selection still works"}</div>}
         <button className={`map-float-btn map-icon-btn map-3d-btn ${is3D ? "active" : ""}`} onClick={toggle3D} aria-pressed={is3D} disabled={!mapReady} aria-label={language === "th" ? (is3D ? "เปลี่ยนเป็นแผนที่ 2D" : "เปิดแผนที่ 3D") : (is3D ? "Switch to 2D map" : "Enable 3D map")} title={language === "th" ? (is3D ? "เปลี่ยนเป็นแผนที่ 2D" : "เปิดแผนที่ 3D") : (is3D ? "Switch to 2D map" : "Enable 3D map")}>{is3D ? <MapIcon /> : <Box />}</button>
         {is3D && <div className={`map-3d-status status-${threeDStatus.toLowerCase()}`} data-3d-status={threeDStatus} data-building-count={threeDBuildingCount}><Box />{
-          threeDStatus === "READY" ? (language === "th" ? `${threeDBuildingCount ? `${threeDBuildingCount} ` : ""}อาคาร OSM 3D พร้อม · รูปทรง/ความสูงที่ไม่มีข้อมูลเป็นค่าประมาณ` : `${threeDBuildingCount ? `${threeDBuildingCount} ` : ""}OSM buildings ready · missing shapes/heights are estimated`)
+          threeDStatus === "READY" ? (language === "th" ? `${threeDBuildingCount ? `${threeDBuildingCount} ` : ""}อาคาร OSM 3D พร้อม · แสดงอาคารทีละแหล่งข้อมูล ไม่ซ้อนทับกัน` : `${threeDBuildingCount ? `${threeDBuildingCount} ` : ""}OSM buildings ready · one non-overlapping 3D source`)
             : threeDStatus === "TERRAIN_ONLY" ? (language === "th" ? "ภูมิประเทศ 3D พร้อม · ไม่พบข้อมูลความสูงอาคารบริเวณนี้" : "3D terrain ready · no building-height data in this view")
               : threeDStatus === "LOADING" ? (language === "th" ? "กำลังโหลดภูมิประเทศและอาคาร 3D…" : "Loading 3D terrain and buildings…")
                 : (language === "th" ? "ผู้ให้บริการข้อมูล 3D ไม่พร้อม" : "3D providers unavailable")

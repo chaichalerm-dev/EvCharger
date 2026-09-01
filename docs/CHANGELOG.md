@@ -4,6 +4,20 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.7 — 2026-09-01
+
+### ภาษาไทย
+
+- แก้อาคาร 3D ซ้อนกันโดยบังคับให้ OpenFreeMap vector และ OSM GeoJSON fallback แสดงผลได้ครั้งละหนึ่งแหล่งเท่านั้น
+- ถอด footprint แบบแบนและบล็อกอาคาร HTML ที่เคยวางทับ canvas จนเห็นเป็นสี่เหลี่ยมบน Vercel ออก
+- ใช้ MapLibre `fill-extrusion` ทั้งแหล่งหลักและ fallback พร้อมพัก terrain/hillshade ขณะแสดงอาคาร เพื่อให้ local และ production แสดงผลสอดคล้องกัน
+
+### English
+
+- Prevented overlapping 3D buildings by making the OpenFreeMap vector and OSM GeoJSON fallback layers mutually exclusive.
+- Removed the flat footprint and HTML building blocks that appeared as rectangles above the Vercel canvas.
+- Both primary and fallback buildings now use MapLibre `fill-extrusion`, with terrain/hillshade paused while buildings are visible for consistent local and production rendering.
+
 ## 0.9.6 — 2026-08-31
 
 ### ภาษาไทย
