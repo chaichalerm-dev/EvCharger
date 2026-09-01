@@ -63,7 +63,7 @@ Authoritative parcel/flood/traffic contracts, polygon drawing ที่ persist,
 
 #### การแสดงอาคารในพื้นที่เมือง
 
-เมื่อพบรูปทรงอาคารรอบจุดที่เลือก ระบบจะใช้โหมดอาคารเมือง 3D และพัก raster terrain/hillshade ชั่วคราว เพราะฐานอาคาร GeoJSON อาจถูก depth buffer ของ terrain บังจนดูเหมือนอาคารจมหายไป หากไม่พบข้อมูลอาคาร ระบบจะกลับไปแสดงภูมิประเทศ 3D เป็น fallback วิธีนี้ให้ความสำคัญกับอาคารที่ใช้วิเคราะห์ทำเล โดยไม่อ้างว่าความสูงหรือรูปทรงประมาณเป็นข้อมูลสำรวจ
+เมื่อพบรูปทรงอาคารรอบจุดที่เลือก ระบบจะแสดง GeoJSON extrusion จาก same-origin API โดยตรงและซ่อน OpenFreeMap vector extrusion อีกแหล่งเพื่อไม่ให้ซ้อนกัน อาคารถูกวางใต้ label layer แบบเดียวกับ BTSMRT และพัก raster terrain/hillshade เพื่อไม่ให้ depth buffer บังผนังอาคาร หาก API ไม่พร้อม ระบบคง OpenFreeMap vector layer ไว้ให้โหลดต่อและรายงาน unavailable เมื่อไม่พบ geometry แทนการเปิด terrain มาทับแผนที่
 
 ---
 
@@ -93,9 +93,9 @@ Layer controls expose every category with checkbox, icon, label, and on/off stat
 
 ### 3D terrain and buildings
 
-When building geometry is available, urban 3D prioritizes visible building massing and temporarily disables raster terrain/hillshade. This prevents building extrusions from being depth-occluded by the terrain surface. If no building geometry is available, terrain is restored as the nationwide 3D fallback.
+When building geometry is available, urban 3D prioritizes visible building massing and disables raster terrain/hillshade. This prevents building extrusions from being depth-occluded by the terrain surface. If the same-origin API is unavailable, the OpenFreeMap vector layer remains active while it finishes loading; the UI reports unavailable if neither source yields geometry instead of covering the map with terrain.
 
-OpenFreeMap vector tiles are the primary building source. A same-origin `/api/map/buildings` request starts in parallel and contacts the bounded Overpass/Photon providers from the server, avoiding browser CORS differences between localhost and hosted production. Its GeoJSON extrusion is activated only if the vector source has no visible geometry; switching sources hides the previous layer first, so the same building cannot be drawn twice.
+OpenFreeMap vector tiles and a same-origin `/api/map/buildings` request start together. The server contacts bounded Overpass/Photon providers, avoiding browser CORS differences between localhost and hosted production. A successful same-origin collection activates its GeoJSON extrusion directly instead of querying the not-yet-rendered frame after `setData()`; switching sources hides the previous layer first, so the same building cannot be drawn twice.
 
 Both primary and fallback buildings use MapLibre `fill-extrusion`. No flat footprint or HTML building blocks are placed over the canvas.
 

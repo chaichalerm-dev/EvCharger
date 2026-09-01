@@ -31,20 +31,20 @@ const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", lati
 function createBaseStyle(): StyleSpecification {
   const tiles = getApiConnection("osm-tiles");
   return {
-  version: 8,
-  sources: tiles.enabled ? {
-    osm: {
-      type: "raster",
-      tiles: [tiles.endpoint],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "© OpenStreetMap contributors"
-    }
-  } : {},
-  layers: [
-    { id: "local-background", type: "background", paint: { "background-color": "#e7eff8" } },
-    ...(tiles.enabled ? [{ id: "osm-tiles", type: "raster" as const, source: "osm", paint: { "raster-opacity": .94, "raster-fade-duration": 0 } }] : [])
-  ]
+    version: 8,
+    sources: tiles.enabled ? {
+      osm: {
+        type: "raster",
+        tiles: [tiles.endpoint],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: "© OpenStreetMap contributors"
+      }
+    } : {},
+    layers: [
+      { id: "local-background", type: "background", paint: { "background-color": "#e7eff8" } },
+      ...(tiles.enabled ? [{ id: "osm-tiles", type: "raster" as const, source: "osm", paint: { "raster-opacity": .94, "raster-fade-duration": 0 } }] : [])
+    ]
   };
 }
 
@@ -120,13 +120,23 @@ function firstMapOverlayLayer(map: MapLibreMap) {
     .find((layerId) => map.getLayer(layerId));
 }
 
+function firstMapLabelLayer(map: MapLibreMap) {
+  return map.getStyle().layers.find(
+    (layer) => layer.type === "symbol" && Boolean(layer.layout?.["text-field"]),
+  )?.id;
+}
+
+function buildingInsertionLayer(map: MapLibreMap) {
+  return firstMapLabelLayer(map) ?? firstMapOverlayLayer(map);
+}
+
 function ensure3DTerrain(map: MapLibreMap) {
   const connection = getApiConnection("mapterhorn-terrain");
   if (!connection.enabled || !connection.endpoint) return false;
   if (!map.getSource("mapterhorn-terrain")) {
     map.addSource("mapterhorn-terrain", { type: "raster-dem", url: connection.endpoint, tileSize: 512 });
   }
-  const firstOverlayLayer = firstMapOverlayLayer(map);
+  const firstOverlayLayer = buildingInsertionLayer(map);
   if (!map.getLayer("terrain-hillshade")) {
     map.addLayer({
       id: "terrain-hillshade",
@@ -152,7 +162,7 @@ function ensure3DBuildings(map: MapLibreMap) {
   if (!map.getSource("openfreemap-buildings")) {
     map.addSource("openfreemap-buildings", { type: "vector", url: connection.endpoint });
   }
-  const firstOverlayLayer = firstMapOverlayLayer(map);
+  const firstOverlayLayer = buildingInsertionLayer(map);
   if (!map.getLayer("3d-buildings")) {
     map.addLayer({
       id: "3d-buildings",
@@ -163,10 +173,10 @@ function ensure3DBuildings(map: MapLibreMap) {
       layout: { visibility: "none" },
       filter: ["!=", ["get", "hide_3d"], true],
       paint: {
-        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 6], 0, "#b9d9f2", 40, "#4b93c8", 120, "#175b91"],
-        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.2, ["coalesce", ["get", "render_height"], 6]],
-        "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
-        "fill-extrusion-opacity": 0.94,
+        "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "render_height"], 8], 0, "#d7e1ec", 80, "#91aac7", 220, "#587a9f"],
+        "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14.5, 0, 15.5, ["coalesce", ["get", "render_height"], 8]],
+        "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14.5, 0, 15.5, ["coalesce", ["get", "render_min_height"], 0]],
+        "fill-extrusion-opacity": 0.9,
         "fill-extrusion-vertical-gradient": true
       }
     }, firstOverlayLayer);
@@ -261,6 +271,21 @@ export function MapExplorer() {
     POI: publicContext ? publicCounts.pois : null,
   }), [analysis.counts.competitors, publicContext, publicCounts]);
 
+  const settleVectorBuildingStatus = (requestSequence: number) => {
+    window.setTimeout(() => {
+      const map = mapRef.current;
+      if (!map || requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
+      const vectorBuildingCount = rendered3DBuildingCount(map);
+      if (vectorBuildingCount > 0) {
+        threeDBuildingCountRef.current = vectorBuildingCount;
+        setThreeDBuildingCount(vectorBuildingCount);
+        setThreeDStatus("READY");
+      } else if (threeDBuildingCountRef.current === 0) {
+        setThreeDStatus("UNAVAILABLE");
+      }
+    }, 3_500);
+  };
+
   const loadBuildingFootprints = async (candidate: Candidate) => {
     const map = mapRef.current;
     const source = map?.getSource("osm-building-footprints") as GeoJSONSource | undefined;
@@ -276,23 +301,20 @@ export function MapExplorer() {
       if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
       source.setData(collection);
       if (collection.features.length) {
-        const vectorBuildingCount = rendered3DBuildingCount(map);
-        if (vectorBuildingCount > 0) {
-          threeDBuildingCountRef.current = vectorBuildingCount;
-          setThreeDBuildingCount(vectorBuildingCount);
-          setBuildingLayerMode(map, "VECTOR");
-        } else {
-          threeDBuildingCountRef.current = collection.features.length;
-          setThreeDBuildingCount(collection.features.length);
-          setBuildingLayerMode(map, "GEOJSON");
-        }
+        // setData is asynchronous. Querying rendered features here can still
+        // see the previous vector frame and select the wrong layer in hosted
+        // builds. The bounded same-origin collection is already authoritative,
+        // so show it directly and let the idle handler verify the rendered count.
+        threeDBuildingCountRef.current = collection.features.length;
+        setThreeDBuildingCount(collection.features.length);
+        setBuildingLayerMode(map, "GEOJSON");
         map.setTerrain(null);
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
         setThreeDStatus("READY");
       } else {
-        setBuildingLayerMode(map, "NONE");
-        try { ensure3DTerrain(map); } catch (error) { console.warn("Unable to restore Mapterhorn terrain", error); }
-        setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+        setBuildingLayerMode(map, "VECTOR");
+        setThreeDStatus("LOADING");
+        settleVectorBuildingStatus(requestSequence);
       }
     } catch (error) {
       if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
@@ -302,9 +324,12 @@ export function MapExplorer() {
         setThreeDBuildingCount(vectorBuildingCount);
         setThreeDStatus("READY");
       } else {
-        setBuildingLayerMode(map, "NONE");
-        try { ensure3DTerrain(map); } catch (terrainError) { console.warn("Unable to restore Mapterhorn terrain", terrainError); }
-        setThreeDStatus(map.getTerrain()?.source ? "TERRAIN_ONLY" : "UNAVAILABLE");
+        // Keep the vector extrusion visible while OpenFreeMap finishes loading.
+        // Enabling terrain here can cover both the vector basemap and buildings
+        // on production GPUs, which was the source of the blank/flat 3D view.
+        setBuildingLayerMode(map, "VECTOR");
+        setThreeDStatus("LOADING");
+        settleVectorBuildingStatus(requestSequence);
       }
     } finally {
       if (requestSequence === buildingRequestSequenceRef.current) buildingFallbackLoadingRef.current = false;
@@ -377,7 +402,7 @@ export function MapExplorer() {
       if (next) {
         let buildingsEnabled = false;
         try { buildingsEnabled = ensure3DBuildings(map); } catch (error) { console.warn("Unable to enable OpenFreeMap buildings", error); }
-        const firstOverlayLayer = firstMapOverlayLayer(map);
+        const firstOverlayLayer = buildingInsertionLayer(map);
         if (map.getLayer("osm-buildings-3d") && firstOverlayLayer) map.moveLayer("osm-buildings-3d", firstOverlayLayer);
         if (buildingsEnabled) {
           // Building extrusions and raster terrain compete for the same depth
@@ -613,13 +638,13 @@ export function MapExplorer() {
         minzoom: 14,
         layout: { visibility: "none" },
         paint: {
-          "fill-extrusion-color": ["case", ["==", ["get", "selected"], true], "#00d8ff", "#1476ad"],
-          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 13.5, 0, 14.8, ["get", "renderHeightMeters"]],
-          "fill-extrusion-base": ["get", "minHeightMeters"],
-          "fill-extrusion-opacity": 0.96,
+          "fill-extrusion-color": ["case", ["==", ["get", "selected"], true], "#00d8ff", "#70a9d2"],
+          "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, ["get", "renderHeightMeters"]],
+          "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14, 0, 15, ["get", "minHeightMeters"]],
+          "fill-extrusion-opacity": 0.92,
           "fill-extrusion-vertical-gradient": true,
         },
-      }, "opportunity-clusters");
+      }, buildingInsertionLayer(map));
 
       map.on("click", (event) => {
         const hits = map.queryRenderedFeatures(event.point, { layers: ["opportunity-points"] });

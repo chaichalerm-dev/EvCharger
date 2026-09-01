@@ -4,6 +4,20 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.9 — 2026-09-01
+
+### ภาษาไทย
+
+- แก้ Vercel รายงานว่าโหลดอาคารแล้วแต่ภาพยังดูแบน โดยไม่ตัดสิน source จาก `queryRenderedFeatures()` ทันทีหลัง `GeoJSONSource.setData()` ซึ่งยังเป็นเฟรมเก่า
+- เมื่อ same-origin building API ส่ง geometry สำเร็จ ระบบแสดง GeoJSON extrusion โดยตรงและซ่อน vector layer อีกแหล่ง จึงไม่มีการซ้อนกันหรือเลือก layer ผิดจาก race condition
+- วางอาคาร 3D ใต้ label layer แบบเดียวกับ BTSMRT, เพิ่มความสูงขั้นต่ำที่ใช้แสดง fallback และไม่เปิด terrain ทับระหว่างรอ OpenFreeMap
+
+### English
+
+- Fixed Vercel reporting loaded buildings while still looking flat by no longer choosing a source from `queryRenderedFeatures()` immediately after asynchronous `GeoJSONSource.setData()`.
+- A successful same-origin building response now activates its GeoJSON extrusion directly and hides the alternate vector layer, removing the source-selection race without overlapping buildings.
+- Buildings now sit below the first label layer like BTSMRT, fallback display heights are clearer, and terrain is not enabled over the map while OpenFreeMap buildings are still loading.
+
 ## 0.9.8 — 2026-09-01
 
 ### ภาษาไทย
