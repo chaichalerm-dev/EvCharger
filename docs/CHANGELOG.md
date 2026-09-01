@@ -10,13 +10,13 @@ Dates use ISO format and entries describe user and technical impact.
 
 - แก้ Vercel รายงานว่าโหลดอาคารแล้วแต่ภาพยังดูแบน โดยรอเฟรมหลัง `GeoJSONSource.setData()` และนับเฉพาะอาคารที่วาดอยู่ใน viewport จริง
 - เมื่อ same-origin building API ส่ง geometry สำเร็จ ระบบแสดง GeoJSON extrusion โดยตรงและซ่อน vector layer อีกแหล่ง จึงไม่มีการซ้อนกันหรือเลือก layer ผิดจาก race condition
-- วางอาคาร 3D ใต้ label layer แบบเดียวกับ BTSMRT, เพิ่มความสูงขั้นต่ำของ fallback, ปรับกล้องเป็น zoom 16/pitch 58° เพื่อเห็นอาคารรอบจุดมากขึ้น และไม่เปิด terrain ทับระหว่างรอ OpenFreeMap
+- วางอาคาร 3D ใต้ label layer แบบเดียวกับ BTSMRT, เพิ่มความสูงขั้นต่ำของ fallback, ปรับกล้องเป็น zoom 15.5/pitch 55° เพื่อเก็บ footprint ใกล้สุดของ Photon ไว้ในกรอบ และไม่เปิด terrain ทับระหว่างรอ OpenFreeMap
 
 ### English
 
 - Fixed Vercel reporting loaded buildings while still looking flat by waiting for the post-`setData()` frame and counting only buildings actually rendered in the viewport.
 - A successful same-origin building response now activates its GeoJSON extrusion directly and hides the alternate vector layer, removing the source-selection race without overlapping buildings.
-- Buildings now sit below the first label layer like BTSMRT, fallback display heights are clearer, the camera uses zoom 16/pitch 58° to include more nearby buildings, and terrain is not enabled while OpenFreeMap is still loading.
+- Buildings now sit below the first label layer like BTSMRT, fallback display heights are clearer, the camera uses zoom 15.5/pitch 55° to keep the nearest Photon footprints in view, and terrain is not enabled while OpenFreeMap is still loading.
 
 ## 0.9.8 — 2026-09-01
 

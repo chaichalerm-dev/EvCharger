@@ -27,7 +27,7 @@ import {
 import { ScoreBar } from "@/src/components/ui/score-bar";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
-const THREE_D_CAMERA = { zoom: 16, pitch: 58, bearing: -24 } as const;
+const THREE_D_CAMERA = { zoom: 15.5, pitch: 55, bearing: -24 } as const;
 
 function createBaseStyle(): StyleSpecification {
   const tiles = getApiConnection("osm-tiles");
@@ -321,7 +321,7 @@ export function MapExplorer() {
             setBuildingLayerMode(map, "VECTOR");
             settleVectorBuildingStatus(requestSequence);
           }
-        }, 900);
+        }, 1_500);
       } else {
         setBuildingLayerMode(map, "VECTOR");
         setThreeDStatus("LOADING");
