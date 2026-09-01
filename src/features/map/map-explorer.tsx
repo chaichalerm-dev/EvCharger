@@ -27,6 +27,7 @@ import {
 import { ScoreBar } from "@/src/components/ui/score-bar";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
+const THREE_D_CAMERA = { zoom: 16, pitch: 58, bearing: -24 } as const;
 
 function createBaseStyle(): StyleSpecification {
   const tiles = getApiConnection("osm-tiles");
@@ -301,16 +302,26 @@ export function MapExplorer() {
       if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
       source.setData(collection);
       if (collection.features.length) {
-        // setData is asynchronous. Querying rendered features here can still
-        // see the previous vector frame and select the wrong layer in hosted
-        // builds. The bounded same-origin collection is already authoritative,
-        // so show it directly and let the idle handler verify the rendered count.
-        threeDBuildingCountRef.current = collection.features.length;
-        setThreeDBuildingCount(collection.features.length);
+        // setData is asynchronous. Make the bounded source the sole candidate,
+        // then verify a later rendered frame before reporting it as ready.
+        threeDBuildingCountRef.current = 0;
+        setThreeDBuildingCount(0);
         setBuildingLayerMode(map, "GEOJSON");
         map.setTerrain(null);
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
-        setThreeDStatus("READY");
+        setThreeDStatus("LOADING");
+        window.setTimeout(() => {
+          if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
+          const renderedGeoJsonCount = rendered3DBuildingCount(map);
+          if (renderedGeoJsonCount > 0) {
+            threeDBuildingCountRef.current = renderedGeoJsonCount;
+            setThreeDBuildingCount(renderedGeoJsonCount);
+            setThreeDStatus("READY");
+          } else {
+            setBuildingLayerMode(map, "VECTOR");
+            settleVectorBuildingStatus(requestSequence);
+          }
+        }, 900);
       } else {
         setBuildingLayerMode(map, "VECTOR");
         setThreeDStatus("LOADING");
@@ -364,9 +375,9 @@ export function MapExplorer() {
     if (shouldRecenterForSelection(origin)) {
       mapRef.current?.easeTo({
         center: [candidate.longitude, candidate.latitude],
-        zoom: is3DRef.current ? 16.5 : 13.5,
-        pitch: is3DRef.current ? 65 : 0,
-        bearing: is3DRef.current ? -24 : 0,
+        zoom: is3DRef.current ? THREE_D_CAMERA.zoom : 13.5,
+        pitch: is3DRef.current ? THREE_D_CAMERA.pitch : 0,
+        bearing: is3DRef.current ? THREE_D_CAMERA.bearing : 0,
         duration: 650
       });
     }
@@ -436,9 +447,9 @@ export function MapExplorer() {
       }
       map.easeTo({
         center: [location.longitude, location.latitude],
-        pitch: next ? 65 : 0,
-        bearing: next ? -24 : 0,
-        zoom: next ? Math.max(map.getZoom(), 16.5) : Math.min(map.getZoom(), 14),
+        pitch: next ? THREE_D_CAMERA.pitch : 0,
+        bearing: next ? THREE_D_CAMERA.bearing : 0,
+        zoom: next ? Math.max(map.getZoom(), THREE_D_CAMERA.zoom) : Math.min(map.getZoom(), 14),
         duration: 700
       });
       setThreeDStatus(next ? "LOADING" : "IDLE");
@@ -794,7 +805,7 @@ export function MapExplorer() {
               : threeDStatus === "LOADING" ? (language === "th" ? "กำลังโหลดภูมิประเทศและอาคาร 3D…" : "Loading 3D terrain and buildings…")
                 : (language === "th" ? "ผู้ให้บริการข้อมูล 3D ไม่พร้อม" : "3D providers unavailable")
         }</div>}
-        <button className="map-float-btn map-icon-btn map-center-btn" disabled={!mapReady} aria-label={language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"} title={language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? 16.5 : 13.5, pitch: is3D ? 65 : 0, bearing: is3D ? -24 : 0, duration: 500 })}><Focus /></button>
+        <button className="map-float-btn map-icon-btn map-center-btn" disabled={!mapReady} aria-label={language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"} title={language === "th" ? "กลับไปจุดที่เลือก" : "Center selected point"} onClick={() => mapRef.current?.easeTo({ center: [location.longitude, location.latitude], zoom: is3D ? THREE_D_CAMERA.zoom : 13.5, pitch: is3D ? THREE_D_CAMERA.pitch : 0, bearing: is3D ? THREE_D_CAMERA.bearing : 0, duration: 500 })}><Focus /></button>
       </div>
 
       <aside className="map-panel site-panel result-panel">

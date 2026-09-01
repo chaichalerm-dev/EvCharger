@@ -47,7 +47,7 @@ Layer controls มี EV stations, competitors, gas stations, POI, flood, partne
 1. Mapterhorn raster DEM สำหรับ terrain/hillshade พร้อม exaggeration ระดับสาธิต
 2. OpenFreeMap vector building สำหรับ fill extrusion จาก `render_height`/`render_min_height`
 
-เมื่อเปิด 3D กล้องกลับไป selected point, zoom ใกล้, pitch 65° และ bearing ที่ช่วยอ่านรูปทรง Terrain มี coverage กว้าง แต่อาคาร 3D ปรากฏเฉพาะพื้นที่ที่ OpenStreetMap มี building geometry/height ที่ใช้ได้ พื้นที่ราบในกรุงเทพฯ อาจดูเกือบแบนแม้ terrain ทำงาน ระบบแสดงสถานะ terrain+building, terrain-only, loading หรือ unavailable ตามจริง
+เมื่อเปิด 3D กล้องกลับไป selected point ที่ zoom 16, pitch 58° และ bearing ที่ช่วยอ่านผนังอาคารพร้อมเก็บบริบทรอบจุดไว้ใน viewport อาคาร 3D ปรากฏเฉพาะพื้นที่ที่ OpenStreetMap มี building geometry/height ที่ใช้ได้ และสถานะพร้อมนับเฉพาะ extrusion ที่วาดอยู่ใน viewport จริง
 
 Building เริ่ม render ที่ zoom 14 ใช้ antialias และวางใต้ analysis polygon, marker และ cluster เพื่อไม่บังข้อมูลตัดสินใจ ปุ่ม recenter เป็น icon-only พร้อม accessible name
 
@@ -99,7 +99,7 @@ OpenFreeMap vector tiles and a same-origin `/api/map/buildings` request start to
 
 Both primary and fallback buildings use MapLibre `fill-extrusion`. No flat footprint or HTML building blocks are placed over the canvas.
 
-The camera centers on the selected point at close zoom, 65° pitch, and a useful bearing. In parallel, a bounded Overpass request loads up to 450 real OSM building ways within 700 metres through the application API. If Overpass lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the local GeoJSON extrusion layer. The containing or nearest building within 120 metres is highlighted in cyan. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m display default are estimated. UI reports buildings-ready, terrain-only, loading, or unavailable honestly and does not claim surveyed shapes or heights.
+The camera centers on the selected point at zoom 16, 58° pitch, and a useful bearing so nearby fallback buildings remain in view. In parallel, a bounded Overpass request loads up to 450 real OSM building ways within 700 metres through the application API. If Overpass lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the local GeoJSON extrusion layer. The containing or nearest building within 120 metres is highlighted in cyan. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m display default are estimated. The ready count includes only extrusions rendered in the current viewport and does not claim surveyed shapes or heights.
 
 Buildings begin at zoom 14 with antialiasing and remain below analysis and marker overlays. Recenter and 3D actions are compact icon-only controls with accessible names.
 
