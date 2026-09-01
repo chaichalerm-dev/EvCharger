@@ -50,6 +50,16 @@ test("language and theme controls remain interactive", async ({ page }) => {
 test("3D and public location context controls remain usable", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
   await page.route("https://tiles.openfreemap.org/**", (route) => route.abort());
+  await page.route("**/api/map/buildings**", (route) => route.fulfill({
+    contentType: "application/geo+json",
+    body: JSON.stringify({
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", id: "osm-building-101", properties: { osmId: 101, name: "Selected building", heightMeters: 12.4, renderHeightMeters: 22, minHeightMeters: 0, heightSource: "OSM_LEVELS_ESTIMATE", geometrySource: "OSM_FOOTPRINT", selected: true }, geometry: { type: "Polygon", coordinates: [[[100.6355, 13.6679], [100.6359, 13.6679], [100.6359, 13.6683], [100.6355, 13.6683], [100.6355, 13.6679]]] } },
+        { type: "Feature", id: "osm-building-102", properties: { osmId: 102, name: "OSM building", heightMeters: 18, renderHeightMeters: 18, minHeightMeters: 0, heightSource: "OSM_HEIGHT", geometrySource: "OSM_FOOTPRINT", selected: false }, geometry: { type: "Polygon", coordinates: [[[100.637, 13.669], [100.6372, 13.669], [100.6372, 13.6692], [100.637, 13.6692], [100.637, 13.669]]] } },
+      ],
+    }),
+  }));
   await page.route("**/api/interpreter", (route) => {
     const isBuildingRequest = route.request().postData()?.includes('way%5B%22building%22%5D') ?? false;
     return route.fulfill({

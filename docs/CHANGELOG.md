@@ -4,6 +4,20 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.9.8 — 2026-09-01
+
+### ภาษาไทย
+
+- แก้โหมด 3D บน Vercel ไม่มีอาคารเมื่อ browser เรียก Overpass/Photon ข้ามโดเมนไม่สำเร็จ โดยเพิ่ม API อาคารภายในโดเมนเดียวกับเว็บ
+- เริ่มโหลด OpenFreeMap vector และ OSM fallback พร้อมกันเมื่อกด 3D จึงไม่ต้องรอ timeout ก่อนเริ่มดึงรูปทรงอาคาร
+- เลือกแสดง vector หรือ GeoJSON extrusion เพียงแหล่งเดียวตามแหล่งที่พร้อมใช้งาน โดยทั้งสองทางยังเป็น MapLibre 3D จริง
+
+### English
+
+- Fixed missing 3D buildings on Vercel when browser-side cross-origin Overpass/Photon requests were unavailable by adding a same-origin building API.
+- OpenFreeMap vector tiles and the OSM fallback now start loading together when 3D mode is enabled instead of waiting for a timeout.
+- The first usable vector or GeoJSON extrusion remains the sole visible building source, and both paths render as real MapLibre 3D geometry.
+
 ## 0.9.7 — 2026-09-01
 
 ### ภาษาไทย

@@ -147,6 +147,29 @@ export interface BuildingFootprintProvider {
   nearby(point: GeoPoint): Promise<BuildingFootprintCollection>;
 }
 
+/**
+ * Browser-safe building provider. Production browsers call the application
+ * origin and let the server contact Overpass/Photon, avoiding provider CORS
+ * differences between localhost and hosted deployments.
+ */
+export class ApiBuildingFootprintProvider implements BuildingFootprintProvider {
+  async nearby(point: GeoPoint): Promise<BuildingFootprintCollection> {
+    const query = new URLSearchParams({
+      latitude: point.latitude.toFixed(6),
+      longitude: point.longitude.toFixed(6),
+    });
+    const response = await fetch(`/api/map/buildings?${query}`, {
+      headers: { Accept: "application/geo+json, application/json" },
+    });
+    if (!response.ok) throw new Error(`Building API request ${response.status}`);
+    const collection = await response.json() as BuildingFootprintCollection;
+    if (collection.type !== "FeatureCollection" || !Array.isArray(collection.features)) {
+      throw new Error("Invalid building API response");
+    }
+    return collection;
+  }
+}
+
 export class OverpassBuildingFootprintProvider implements BuildingFootprintProvider {
   async nearby(point: GeoPoint): Promise<BuildingFootprintCollection> {
     const connection = getApiConnection("overpass");

@@ -95,11 +95,11 @@ Layer controls expose every category with checkbox, icon, label, and on/off stat
 
 When building geometry is available, urban 3D prioritizes visible building massing and temporarily disables raster terrain/hillshade. This prevents building extrusions from being depth-occluded by the terrain surface. If no building geometry is available, terrain is restored as the nationwide 3D fallback.
 
-OpenFreeMap vector tiles are the primary building source. The bounded Overpass/Photon GeoJSON source is activated only if the vector source fails or has no visible geometry; switching sources hides the previous layer first, so the same building cannot be drawn twice.
+OpenFreeMap vector tiles are the primary building source. A same-origin `/api/map/buildings` request starts in parallel and contacts the bounded Overpass/Photon providers from the server, avoiding browser CORS differences between localhost and hosted production. Its GeoJSON extrusion is activated only if the vector source has no visible geometry; switching sources hides the previous layer first, so the same building cannot be drawn twice.
 
 Both primary and fallback buildings use MapLibre `fill-extrusion`. No flat footprint or HTML building blocks are placed over the canvas.
 
-The camera centers on the selected point at close zoom, 65° pitch, and a useful bearing. If vector tiles do not yield visible geometry within the loading window, a bounded Overpass request loads up to 450 real OSM building ways within 700 metres. If Overpass also lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the local GeoJSON extrusion layer. The containing or nearest building within 120 metres is highlighted in cyan. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m display default are estimated. UI reports buildings-ready, terrain-only, loading, or unavailable honestly and does not claim surveyed shapes or heights.
+The camera centers on the selected point at close zoom, 65° pitch, and a useful bearing. In parallel, a bounded Overpass request loads up to 450 real OSM building ways within 700 metres through the application API. If Overpass lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the local GeoJSON extrusion layer. The containing or nearest building within 120 metres is highlighted in cyan. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m display default are estimated. UI reports buildings-ready, terrain-only, loading, or unavailable honestly and does not claim surveyed shapes or heights.
 
 Buildings begin at zoom 14 with antialiasing and remain below analysis and marker overlays. Recenter and 3D actions are compact icon-only controls with accessible names.
 

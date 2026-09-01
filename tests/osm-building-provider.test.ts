@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { OverpassBuildingFootprintProvider } from "@/src/providers/osm-building.provider";
+import { ApiBuildingFootprintProvider, OverpassBuildingFootprintProvider } from "@/src/providers/osm-building.provider";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -61,5 +61,17 @@ describe("OverpassBuildingFootprintProvider", () => {
     expect(String(fetchMock.mock.calls[1][0])).toContain("osm_tag=building");
     expect(result.features[0].properties).toMatchObject({ geometrySource: "PHOTON_EXTENT", heightSource: "DEFAULT_ESTIMATE", selected: true });
     expect(result.features[0].geometry.coordinates[0][0]).toEqual([100.6398, 13.6808]);
+  });
+});
+
+describe("ApiBuildingFootprintProvider", () => {
+  it("loads browser fallback geometry through the same-origin application API", async () => {
+    const collection = { type: "FeatureCollection", features: [] } as const;
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => collection });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(new ApiBuildingFootprintProvider().nearby({ latitude: 13.6681, longitude: 100.6357 }))
+      .resolves.toEqual(collection);
+    expect(String(fetchMock.mock.calls[0][0])).toBe("/api/map/buildings?latitude=13.668100&longitude=100.635700");
   });
 });
