@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import maplibregl from "maplibre-gl";
 import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import {
   AlertTriangle, ArrowRight, Box, Building2, CheckCircle2, ChevronDown, CircleDot, Database, Focus, Fuel,
@@ -312,16 +313,8 @@ export function MapExplorer() {
         setThreeDStatus("LOADING");
         window.setTimeout(() => {
           if (requestSequence !== buildingRequestSequenceRef.current || !is3DRef.current) return;
-          const renderedGeoJsonCount = rendered3DBuildingCount(map);
-          if (renderedGeoJsonCount > 0) {
-            threeDBuildingCountRef.current = renderedGeoJsonCount;
-            setThreeDBuildingCount(renderedGeoJsonCount);
-            setThreeDStatus("READY");
-          } else {
-            setBuildingLayerMode(map, "VECTOR");
-            settleVectorBuildingStatus(requestSequence);
-          }
-        }, 1_500);
+          if (threeDBuildingCountRef.current === 0) setThreeDStatus("UNAVAILABLE");
+        }, 8_000);
       } else {
         setBuildingLayerMode(map, "VECTOR");
         setThreeDStatus("LOADING");
@@ -482,7 +475,6 @@ export function MapExplorer() {
 
   useEffect(() => {
     let cancelled = false;
-    void import("maplibre-gl").then((maplibregl) => {
     if (cancelled || !container.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: container.current,
@@ -672,7 +664,6 @@ export function MapExplorer() {
       map.on("mouseleave", "opportunity-points", () => { map.getCanvas().style.cursor = "crosshair"; });
       map.getCanvas().style.cursor = "crosshair";
       setMapReady(true);
-    });
     });
     return () => {
       cancelled = true;

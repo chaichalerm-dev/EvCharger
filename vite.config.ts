@@ -46,7 +46,10 @@ export default defineConfig(async () => {
 
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
-    optimizeDeps: { exclude: ['maplibre-gl'] },
+    // MapLibre 5 ships a UMD bundle behind a module-typed package. Force Vite
+    // to prebundle it so local/Sites builds receive the same default export
+    // shape that Next.js provides in Vercel production.
+    optimizeDeps: { include: ['maplibre-gl'] },
     server: isCodexSeatbeltSandbox
       ? { watch: { useFsEvents: false, usePolling: true } }
       : undefined,
