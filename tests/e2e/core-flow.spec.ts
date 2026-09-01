@@ -50,28 +50,37 @@ test("language and theme controls remain interactive", async ({ page }) => {
 test("3D and public location context controls remain usable", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
   let openFreeMapRequests = 0;
-  await page.route("https://tiles.openfreemap.org/**", (route) => {
-    openFreeMapRequests += 1;
+  let buildingApiRequests = 0;
+  await page.route("**/api/map/buildings**", (route) => {
+    buildingApiRequests += 1;
     return route.abort();
   });
-  await page.route("**/api/map/buildings**", (route) => route.fulfill({
-    contentType: "application/geo+json",
-    body: JSON.stringify({
-      type: "FeatureCollection",
-      features: [
-        { type: "Feature", id: "osm-building-101", properties: { osmId: 101, name: "Selected building", heightMeters: 12.4, renderHeightMeters: 22, minHeightMeters: 0, heightSource: "OSM_LEVELS_ESTIMATE", geometrySource: "OSM_FOOTPRINT", selected: true }, geometry: { type: "Polygon", coordinates: [[[100.6355, 13.6679], [100.6359, 13.6679], [100.6359, 13.6683], [100.6355, 13.6683], [100.6355, 13.6679]]] } },
-        { type: "Feature", id: "osm-building-102", properties: { osmId: 102, name: "OSM building", heightMeters: 18, renderHeightMeters: 18, minHeightMeters: 0, heightSource: "OSM_HEIGHT", geometrySource: "OSM_FOOTPRINT", selected: false }, geometry: { type: "Polygon", coordinates: [[[100.637, 13.669], [100.6372, 13.669], [100.6372, 13.6692], [100.637, 13.6692], [100.637, 13.669]]] } },
-      ],
-    }),
-  }));
-  await page.route("**/api/interpreter", (route) => {
-    const isBuildingRequest = route.request().postData()?.includes('way%5B%22building%22%5D') ?? false;
+  await page.route("https://tiles.openfreemap.org/planet", (route) => {
+    openFreeMapRequests += 1;
     return route.fulfill({
       contentType: "application/json",
-      body: JSON.stringify({ elements: isBuildingRequest ? [
-        { type: "way", id: 101, tags: { building: "commercial", "building:levels": "4" }, geometry: [{ lat: 13.6679, lon: 100.6355 }, { lat: 13.6679, lon: 100.6359 }, { lat: 13.6683, lon: 100.6359 }, { lat: 13.6683, lon: 100.6355 }, { lat: 13.6679, lon: 100.6355 }] },
-        { type: "way", id: 102, tags: { building: "yes", height: "18" }, geometry: [{ lat: 13.669, lon: 100.637 }, { lat: 13.669, lon: 100.6372 }, { lat: 13.6692, lon: 100.6372 }, { lat: 13.6692, lon: 100.637 }] },
-      ] : [
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({
+        tilejson: "3.0.0",
+        tiles: ["https://tiles.openfreemap.test/{z}/{x}/{y}.pbf"],
+        minzoom: 0,
+        maxzoom: 14,
+        bounds: [97.3, 5.5, 105.7, 20.5],
+      }),
+    });
+  });
+  await page.route("https://tiles.openfreemap.test/**", (route) => {
+    openFreeMapRequests += 1;
+    return route.fulfill({
+      contentType: "application/vnd.mapbox-vector-tile",
+      headers: { "Access-Control-Allow-Origin": "*" },
+      body: Buffer.from("GiUKCGJ1aWxkaW5nEhQIARgDIg4JAgIa/D8AAPw/+z8ADyiAIHgC", "base64"),
+    });
+  });
+  await page.route("**/api/interpreter", (route) => {
+    return route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ elements: [
         { type: "node", id: 7, lat: 13.668, lon: 100.636, tags: { amenity: "charging_station", name: "Education test charger" } },
         { type: "node", id: 8, lat: 13.669, lon: 100.637, tags: { amenity: "fuel", name: "Education test fuel" } },
         { type: "node", id: 9, lat: 13.671, lon: 100.639, tags: { amenity: "hospital", name: "Education test hospital" } },
@@ -120,19 +129,31 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(threeD).toHaveAttribute("aria-label", "Switch to 2D map");
   await expect(page.locator(".map-3d-status")).toBeVisible();
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
-  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", "2");
-  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-source", "OSM_GEOJSON");
-  await expect(page.locator(".map-3d-status")).toContainText("2 OSM buildings ready");
-  await expect(page.locator(".map-3d-status")).toContainText("single building dataset");
-  expect(openFreeMapRequests).toBe(0);
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", /^[1-9]\d*$/);
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-source", "OPENFREEMAP_VECTOR");
+  await expect(page.locator(".map-3d-status")).toContainText("OpenFreeMap 3D buildings ready");
+  await page.locator(".maplibregl-ctrl-zoom-in").click();
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
+  const mapCanvas = page.locator(".maplibregl-canvas");
+  const mapBox = await mapCanvas.boundingBox();
+  expect(mapBox).not.toBeNull();
+  if (mapBox) {
+    await page.mouse.move(mapBox.x + mapBox.width * 0.6, mapBox.y + mapBox.height * 0.5);
+    await page.mouse.down();
+    await page.mouse.move(mapBox.x + mapBox.width * 0.4, mapBox.y + mapBox.height * 0.5, { steps: 5 });
+    await page.mouse.up();
+  }
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
+  expect(openFreeMapRequests).toBeGreaterThan(1);
+  expect(buildingApiRequests).toBe(0);
   await threeD.click();
   await expect(threeD).toHaveAttribute("aria-pressed", "false");
   await expect(page.locator(".map-3d-status")).toHaveCount(0);
   await threeD.click();
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
-  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", "2");
-  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-source", "OSM_GEOJSON");
-  expect(openFreeMapRequests).toBe(0);
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", /^[1-9]\d*$/);
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-source", "OPENFREEMAP_VECTOR");
+  expect(buildingApiRequests).toBe(0);
   await expect(page.locator(".map-building-block")).toHaveCount(0);
   await page.getByRole("button", { name: "Analyze this area" }).click();
   await expect(page.locator(".public-api-card")).toContainText("31°C");

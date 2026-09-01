@@ -42,9 +42,9 @@ Layer controls มี EV stations, competitors, gas stations, POI, flood, partne
 
 ### 3D terrain และอาคาร
 
-ปุ่ม icon-only เปิดอาคาร 3D จาก OSM GeoJSON เพียง pipeline เดียว ส่วน Mapterhorn terrain/hillshade ใช้เฉพาะเมื่อบริเวณนั้นไม่มีรูปทรงอาคารเท่านั้น
+ปุ่ม icon-only เปิดอาคาร 3D จาก OpenFreeMap vector tiles เพียง pipeline เดียว ไม่มี GeoJSON building fallback หรือ terrain layer อีกชุดมาวาดซ้อน
 
-เมื่อเปิด 3D กล้องกลับไป selected point ที่ zoom 15.5, pitch 55° และ bearing ที่ช่วยอ่านผนังอาคารพร้อมเก็บ footprint ใกล้สุดจาก Photon ไว้ใน viewport อาคาร 3D ปรากฏเฉพาะพื้นที่ที่ OpenStreetMap มี building geometry/height ที่ใช้ได้ และสถานะพร้อมนับเฉพาะ extrusion ที่วาดอยู่ใน viewport จริง
+เมื่อเปิด 3D กล้องกลับไป selected point ที่ zoom 15.5, pitch 55° และ bearing ที่ช่วยอ่านผนังอาคาร Vector tiles โหลดตาม viewport ขณะเลื่อนหรือซูม จึงไม่จำกัดอยู่ในรัศมีรอบหมุด อาคาร 3D ปรากฏในพื้นที่ที่ OpenStreetMap มี building geometry และสถานะพร้อมนับเฉพาะ extrusion ที่วาดอยู่ใน viewport จริง
 
 Building เริ่ม render ที่ zoom 14 ใช้ antialias และวางใต้ analysis polygon, marker และ cluster เพื่อไม่บังข้อมูลตัดสินใจ ปุ่ม recenter เป็น icon-only พร้อม accessible name
 
@@ -56,11 +56,11 @@ Canvas มี accessible label การค้นหา รัศมี แล�
 
 Authoritative parcel/flood/traffic contracts, polygon drawing ที่ persist, route/access analysis, server tiling, vector tile strategy, provider health, offline plan, PostGIS query และ server-side credential proxy
 
-เมื่อเปิด 3D ระบบขอรูปทรง `way["building"]` จริงจาก Overpass แบบจำกัด 700 เมตรและไม่เกิน 450 อาคาร หากไม่มี geometry จะใช้ building extent หรือ centroid จาก Photon ค่า `height` จาก OSM ใช้ก่อน ส่วนรูปทรง จำนวนชั้น และความสูงเริ่มต้นที่เติมให้เป็นเพียงค่าประมาณสำหรับการแสดงผล ไม่ใช่ผลสำรวจอาคาร อาคารทั้งหมดใช้สีและกฎความสูงชุดเดียวกัน โดยหมุดเป็นตัวบอกตำแหน่งที่เลือกแทนการเปลี่ยนทรงอาคารเฉพาะหลัง
+OpenFreeMap ส่ง source-layer `building` แบบแบ่ง tile และ MapLibre ใช้ `render_height`/`render_min_height` ทำ fill extrusion หากข้อมูลความสูงไม่ครบจะใช้ค่าความสูงแสดงผลขั้นต่ำ 8 เมตร อาคารทั้งหมดใช้สีและกฎเดียวกัน โดยหมุดเป็นตัวบอกตำแหน่งที่เลือก
 
 #### การแสดงอาคารในพื้นที่เมือง
 
-ระบบแสดง GeoJSON extrusion จาก same-origin API เป็นแหล่งอาคารเพียงชุดเดียว และถอด layer/source แบบ OpenFreeMap รุ่นเก่าออกจาก style ทันทีเพื่อไม่ให้เฟรมเก่าหรือ tile ที่ตอบช้าซ้อนทับกัน อาคารถูกวางใต้ label layer แบบเดียวกับ BTSMRT และพัก raster terrain/hillshade เพื่อไม่ให้ depth buffer บังผนังอาคาร หาก API ไม่พร้อมจึงใช้ terrain เป็น fallback โดยไม่สร้างอาคารอีกชุด
+ระบบมี `openfreemap-buildings` source และ `3d-buildings` layer อย่างละหนึ่งรายการเท่านั้น เปิด–ปิดด้วย visibility โดยไม่สร้าง source อื่นแข่งกัน อาคารถูกวางใต้ label layer แบบเดียวกับ BTSMRT และไม่เปิด raster terrain/hillshade จึงไม่มี depth buffer หรือข้อมูลสองชุดซ้อนกัน
 
 ---
 
@@ -90,13 +90,13 @@ Layer controls expose every category with checkbox, icon, label, and on/off stat
 
 ### 3D terrain and buildings
 
-When building geometry is available, urban 3D uses one same-origin OSM GeoJSON source and disables raster terrain/hillshade. This prevents both depth occlusion and overlapping building renderers. If the building API is unavailable, terrain is the only fallback; no alternate building layer is added.
+Urban 3D uses OpenFreeMap vector tiles as its only building source and keeps raster terrain/hillshade disabled. This prevents both depth occlusion and overlapping building renderers.
 
-A same-origin `/api/map/buildings` request contacts bounded Overpass/Photon providers, avoiding browser CORS differences between localhost and hosted production. Its GeoJSON extrusion is the sole building renderer. Legacy OpenFreeMap building layers and sources are removed rather than hidden, so delayed tiles or frames cannot draw a second version of the same building.
+MapLibre maintains exactly one `openfreemap-buildings` source and one `3d-buildings` extrusion layer. Tiles follow the viewport while users pan or zoom, so coverage is not bounded to the selected point. No building API or GeoJSON fallback is requested.
 
-Both primary and fallback buildings use MapLibre `fill-extrusion`. No flat footprint or HTML building blocks are placed over the canvas.
+Buildings use MapLibre `fill-extrusion`. No alternate footprint, GeoJSON extrusion, terrain, or HTML building blocks are placed over the canvas.
 
-The camera centers on the selected point at zoom 15.5, 55° pitch, and a useful bearing so the nearest Photon footprints remain in view. A bounded Overpass request loads up to 450 real OSM building ways within 700 metres through the application API. If Overpass lacks geometry, Photon OSM building extents—or boxes around returned centroids—feed the same GeoJSON extrusion layer. All buildings share one visual style and one height rule; the map pin identifies the selected position. Tagged `height` is preferred; `building:levels × 3.1 m` and finally a 6.2 m default are estimated. The ready count includes only extrusions rendered in the current viewport and does not claim surveyed shapes or heights.
+The camera centers on the selected point at zoom 15.5, 55° pitch, and a useful bearing. OpenFreeMap's `building` source-layer supplies `render_height` and `render_min_height`; an 8 m display fallback is used when height is absent. All buildings share one visual style and height rule, and the map pin identifies the selected position. The ready count includes only extrusions rendered in the current viewport.
 
 Buildings begin at zoom 14 with antialiasing and remain below analysis and marker overlays. Recenter and 3D actions are compact icon-only controls with accessible names.
 

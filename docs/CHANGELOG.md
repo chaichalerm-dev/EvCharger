@@ -4,6 +4,20 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.10.1 — 2026-09-01
+
+### ภาษาไทย
+
+- เปลี่ยนอาคาร 3D ให้ใช้ OpenFreeMap vector tiles เป็นแหล่งเดียวแบบ BTSMRT จึงโหลดต่อเนื่องตาม viewport ขณะเลื่อนและซูม ไม่จำกัดรัศมี 700 เมตรรอบหมุด
+- ถอด same-origin building API, Overpass/Photon GeoJSON extrusion และ terrain fallback ออกจากเส้นทางแสดงผล 3D เพื่อไม่ให้เกิดอาคารสองชุดซ้อนกันอีก
+- เพิ่มสถานะเมื่อ viewport ไม่มี building geometry และ E2E vector-tile fixture เพื่อยืนยันว่าใช้ OpenFreeMap source เพียงชุดเดียวทั้ง desktop/mobile
+
+### English
+
+- Switched 3D buildings to OpenFreeMap vector tiles as the sole BTSMRT-style source, providing viewport-driven coverage without a 700 m selected-point limit.
+- Removed the same-origin building API, Overpass/Photon GeoJSON extrusion, and terrain fallback from the 3D rendering path so a second building representation cannot overlap it.
+- Added an empty-view status and a deterministic vector-tile E2E fixture that verifies the single OpenFreeMap source on desktop and mobile.
+
 ## 0.10.0 — 2026-09-01
 
 ### ภาษาไทย
