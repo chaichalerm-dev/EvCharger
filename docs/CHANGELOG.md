@@ -4,6 +4,22 @@
 
 Dates use ISO format and entries describe user and technical impact.
 
+## 0.10.0 — 2026-09-01
+
+### ภาษาไทย
+
+- ตัด OpenFreeMap building extrusion ชุดที่สองออก เหลือ same-origin OSM GeoJSON เป็นแหล่งอาคาร 3D เพียงชุดเดียวตลอดการเปิด–ปิดโหมดและเปลี่ยนตำแหน่ง
+- ถอด layer/source รุ่นเก่าออกจาก MapLibre style แทนการซ่อน เพื่อป้องกัน tile หรือเฟรมที่ตอบช้ากลับมาซ้อนทับอาคารชุดปัจจุบัน
+- ใช้สีและกฎความสูงเดียวกันกับทุกอาคาร โดยใช้หมุดระบุตำแหน่งที่เลือกแทนการขยายหรือเปลี่ยนสีอาคารเฉพาะหลัง
+- เพิ่ม E2E regression สำหรับการเปิด–ปิด 3D ซ้ำบน desktop/mobile และยืนยันว่าไม่มี request ไปยังแหล่งอาคาร OpenFreeMap ชุดเดิม
+
+### English
+
+- Removed the second OpenFreeMap building extrusion pipeline. Same-origin OSM GeoJSON is now the sole 3D building source across mode toggles and location changes.
+- Legacy layers and sources are removed from the MapLibre style rather than hidden, preventing delayed tiles or frames from overlapping the current buildings.
+- All buildings now share one color and height rule; the map pin communicates selection without distorting a particular building.
+- Added desktop/mobile E2E regression coverage for repeated 3D toggles and verified that the retired OpenFreeMap building endpoint is never requested.
+
 ## 0.9.9 — 2026-09-01
 
 ### ภาษาไทย

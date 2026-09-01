@@ -6,7 +6,6 @@ export const OSM_BUILDING_QUERY = {
   floorHeightMeters: 3.1,
   defaultHeightMeters: 6.2,
   minimumDisplayHeightMeters: 18,
-  selectedMinimumDisplayHeightMeters: 32,
   maximumHeightMeters: 500,
   selectedBuildingDistanceMeters: 180,
 } as const;

@@ -84,10 +84,6 @@ function selectNearestBuilding(features: BuildingFootprintFeature[], point: GeoP
     .sort((left, right) => left.distance - right.distance)[0]?.feature;
   if (selected) {
     selected.properties.selected = true;
-    selected.properties.renderHeightMeters = Math.max(
-      selected.properties.renderHeightMeters,
-      OSM_BUILDING_QUERY.selectedMinimumDisplayHeightMeters,
-    );
   }
 }
 

@@ -49,7 +49,11 @@ test("language and theme controls remain interactive", async ({ page }) => {
 
 test("3D and public location context controls remain usable", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("evatlas.language", "en"));
-  await page.route("https://tiles.openfreemap.org/**", (route) => route.abort());
+  let openFreeMapRequests = 0;
+  await page.route("https://tiles.openfreemap.org/**", (route) => {
+    openFreeMapRequests += 1;
+    return route.abort();
+  });
   await page.route("**/api/map/buildings**", (route) => route.fulfill({
     contentType: "application/geo+json",
     body: JSON.stringify({
@@ -117,8 +121,18 @@ test("3D and public location context controls remain usable", async ({ page }) =
   await expect(page.locator(".map-3d-status")).toBeVisible();
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
   await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", "2");
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-source", "OSM_GEOJSON");
   await expect(page.locator(".map-3d-status")).toContainText("2 OSM buildings ready");
-  await expect(page.locator(".map-3d-status")).toContainText("one non-overlapping 3D source");
+  await expect(page.locator(".map-3d-status")).toContainText("single building dataset");
+  expect(openFreeMapRequests).toBe(0);
+  await threeD.click();
+  await expect(threeD).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator(".map-3d-status")).toHaveCount(0);
+  await threeD.click();
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-3d-status", "READY");
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-count", "2");
+  await expect(page.locator(".map-3d-status")).toHaveAttribute("data-building-source", "OSM_GEOJSON");
+  expect(openFreeMapRequests).toBe(0);
   await expect(page.locator(".map-building-block")).toHaveCount(0);
   await page.getByRole("button", { name: "Analyze this area" }).click();
   await expect(page.locator(".public-api-card")).toContainText("31°C");
