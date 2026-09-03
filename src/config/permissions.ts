@@ -1,3 +1,32 @@
-export type DemoRole="ADMIN"|"BUSINESS_DEVELOPMENT"|"ANALYST"|"PARTNER"|"VIEWER";
-export type Permission="VIEW_DATA"|"ANALYZE_SITES"|"MANAGE_OPPORTUNITIES"|"REVIEW_PARTNERS"|"SUBMIT_SITE"|"APPROVE_SITE"|"MANAGE_CONFIG";
-export const ROLE_PERMISSIONS:Record<DemoRole,Permission[]>={ADMIN:["VIEW_DATA","ANALYZE_SITES","MANAGE_OPPORTUNITIES","REVIEW_PARTNERS","SUBMIT_SITE","APPROVE_SITE","MANAGE_CONFIG"],BUSINESS_DEVELOPMENT:["VIEW_DATA","ANALYZE_SITES","MANAGE_OPPORTUNITIES","REVIEW_PARTNERS","SUBMIT_SITE"],ANALYST:["VIEW_DATA","ANALYZE_SITES"],PARTNER:["VIEW_DATA","SUBMIT_SITE"],VIEWER:["VIEW_DATA"]};
+// Demo Role เป็นเพียงการจำลอง UX ของสิทธิ์ใน frontend ไม่ใช่ authentication/authorization จริง
+// เมื่อมี backend ต้องตรวจสิทธิ์ซ้ำทุก request ที่ฝั่ง server ห้ามพึ่งรายการนี้เพื่อความปลอดภัยจริง
+export type DemoRole = "ADMIN" | "BUSINESS_DEVELOPMENT" | "ANALYST" | "PARTNER" | "VIEWER";
+export type Permission =
+  | "VIEW_DATA"
+  | "ANALYZE_SITES"
+  | "MANAGE_OPPORTUNITIES"
+  | "REVIEW_PARTNERS"
+  | "SUBMIT_SITE"
+  | "APPROVE_SITE"
+  | "MANAGE_CONFIG";
+export const ROLE_PERMISSIONS: Record<DemoRole, Permission[]> = {
+  ADMIN: [
+    "VIEW_DATA",
+    "ANALYZE_SITES",
+    "MANAGE_OPPORTUNITIES",
+    "REVIEW_PARTNERS",
+    "SUBMIT_SITE",
+    "APPROVE_SITE",
+    "MANAGE_CONFIG",
+  ],
+  BUSINESS_DEVELOPMENT: [
+    "VIEW_DATA",
+    "ANALYZE_SITES",
+    "MANAGE_OPPORTUNITIES",
+    "REVIEW_PARTNERS",
+    "SUBMIT_SITE",
+  ],
+  ANALYST: ["VIEW_DATA", "ANALYZE_SITES"],
+  PARTNER: ["VIEW_DATA", "SUBMIT_SITE"],
+  VIEWER: ["VIEW_DATA"],
+};

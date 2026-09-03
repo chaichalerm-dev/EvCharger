@@ -1,9 +1,8 @@
 /**
- * Prototype navigation envelope for Thailand.
+ * ขอบเขตการเลื่อนแผนที่ของประเทศไทยสำหรับต้นแบบ
  *
- * This bounding box is intentionally a map-navigation constraint, not an
- * authoritative national-boundary dataset. A future GIS provider/PostGIS
- * polygon can replace it without changing the map UI.
+ * bounding box นี้เป็นแค่ข้อจำกัดการนำทางบนแผนที่ ไม่ใช่ข้อมูลขอบเขตประเทศที่เป็นทางการ
+ * ในอนาคตสามารถแทนที่ด้วย polygon จาก GIS provider/PostGIS ได้โดยไม่ต้องแก้ UI แผนที่
  */
 export const THAILAND_MAP_VIEW = {
   countryCode: "TH",
@@ -13,6 +12,8 @@ export const THAILAND_MAP_VIEW = {
   renderWorldCopies: false
 } as const;
 
+// ทุกค่า {overview,normal,detail} คือจุด interpolate ตามระดับ zoom (ดู zoomScaledValue ใน
+// map-explorer.tsx) เพื่อไม่ให้ marker/cluster โตจนบังพื้นที่เมื่อซูมออก
 export const MAP_MARKER_STYLE = {
   pitchAlignment: "viewport",
   pitchScale: "viewport",

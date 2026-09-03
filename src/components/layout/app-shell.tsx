@@ -22,6 +22,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [interactive, setInteractive] = useState(false);
   const { resolvedTheme, setTheme } = useTheme();
   const { language, setLanguage, role } = useApp();
+  // ปุ่มควบคุมจะถูก disabled และอ่านค่าที่บันทึกไว้หลัง mount เท่านั้น เพื่อให้ shell ที่ render จาก server
+  // ตรงกับฝั่ง client ตั้งแต่ paint แรก ไม่เกิด hydration mismatch
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setInteractive(true);
@@ -51,6 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <button className="icon-btn mobile-menu" disabled={!interactive} onClick={() => setMenuOpen(value => !value)} aria-controls="primary-sidebar" aria-expanded={menuOpen} aria-label={t(menuOpen ? "closeNavigation" : "openNavigation")}>{menuOpen ? <X /> : <Menu />}</button>
         <Link href="/map" className="topbar-search-link" aria-label={language === "th" ? "ค้นหาและวิเคราะห์พื้นที่" : "Search and analyze a location"}><Search /><span>{language === "th" ? "ค้นหาพื้นที่สำหรับสถานีชาร์จ" : "Find a location for an EV station"}</span><ArrowRight /></Link>
         <div className="top-actions">
+          {/* ใช้ไอคอนพระจันทร์เป็นค่าเริ่มต้นก่อน mount เพราะ resolvedTheme ยังไม่ทราบค่าตอน SSR */}
           <button className="icon-btn" disabled={!interactive} onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")} aria-label={t("toggleTheme")}>{interactive && resolvedTheme === "dark" ? <Sun /> : <Moon />}</button>
           <button className="icon-btn" disabled={!interactive} onClick={() => setLanguage(language === "en" ? "th" : "en")} aria-label={t("switchLanguage")}><Globe2 /></button>
           <div className="role-pill"><div className="avatar"><ShieldCheck size={16} /></div><div className="role-meta"><strong>{role.replaceAll("_", " ")}</strong><span>{t("prototypeAuth")}</span></div><ChevronDown size={13} /></div>

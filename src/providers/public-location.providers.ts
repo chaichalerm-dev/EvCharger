@@ -3,6 +3,8 @@ import type { HydrologySnapshot, PopulationSnapshot, PublicLocationContext, Traf
 import { OVERPASS_RESULT_LIMITS, PHOTON_OSM_TAG_GROUPS, PHOTON_RESULT_LIMIT } from "@/src/config/overpass";
 import { appendApiKey, getApiConnection, getApiConnectionRevision } from "@/src/services/api-connection.service";
 
+// key ประกอบด้วย connection revision + พิกัด (ปัดเศษ) + รัศมี เพื่อให้ cache หมดอายุอัตโนมัติ
+// เมื่อผู้ใช้เปลี่ยน endpoint/token ของ provider ในหน้า Settings
 const responseCache = new Map<string, PublicLocationContext>();
 
 async function fetchWithTimeout(url: string, init?: RequestInit, timeoutMs = 9000) {
@@ -63,6 +65,7 @@ export class PhotonPublicProvider {
     const connection = getApiConnection("photon");
     if (!connection.enabled) throw new Error("Photon fallback disabled");
     const endpoint = connection.endpoint.replace(/\/$/, "");
+    // ใช้ allSettled: หาก tag group หนึ่ง (เช่น ปั๊มน้ำมัน) timeout ต้องไม่ทำให้กลุ่มอื่นหายไปด้วย
     const results = await Promise.allSettled(PHOTON_OSM_TAG_GROUPS.map(async (osmTag) => {
       const url = new URL(endpoint);
       url.search = new URLSearchParams({
@@ -84,6 +87,7 @@ export class PhotonPublicProvider {
       const properties = feature.properties ?? {};
       const coordinates = feature.geometry?.coordinates;
       if (!coordinates || !Number.isFinite(coordinates[0]) || !Number.isFinite(coordinates[1])) return [];
+      // หลาย tag group อาจคืนค่า OSM feature เดียวกันซ้ำ จึงต้องตัดข้อมูลซ้ำด้วย OSM id
       const sourceId = `${properties.osm_type ?? "feature"}-${properties.osm_id ?? `${coordinates[0]}-${coordinates[1]}`}`;
       if (seen.has(sourceId)) return [];
       seen.add(sourceId);
@@ -113,6 +117,8 @@ export class OverpassPublicProvider {
   async nearby(point: GeoPoint, radiusKm: number): Promise<MapEntity[]> {
     const connection = getApiConnection("overpass");
     if (!connection.enabled) return new PhotonPublicProvider().nearby(point, radiusKm);
+    // จำกัดค่าไว้ที่ 1-10 กม.: ต่ำกว่า 1 กม. query "around" ของ Overpass จะให้ผลลัพธ์รบกวนมาก
+    // ส่วนเกิน 10 กม. query nwr ที่รวมกันจะหนักและช้าบน public instance ที่ใช้ร่วมกัน
     const radiusMeters = Math.round(Math.max(1, Math.min(10, radiusKm)) * 1000);
     const around = `(around:${radiusMeters},${point.latitude.toFixed(6)},${point.longitude.toFixed(6)})`;
     const query = `[out:json][timeout:12];nwr["amenity"="charging_station"]${around};out center tags ${OVERPASS_RESULT_LIMITS.evStations};nwr["amenity"="fuel"]${around};out center tags ${OVERPASS_RESULT_LIMITS.gasStations};(nwr["amenity"~"restaurant|hospital|school|university|parking"]${around};nwr["shop"~"mall|supermarket|convenience"]${around};nwr["tourism"~"hotel|attraction"]${around};);out center tags ${OVERPASS_RESULT_LIMITS.pois};`;
@@ -128,6 +134,8 @@ export class OverpassPublicProvider {
       if (!Array.isArray(payload.elements)) throw new Error("Invalid JSON payload");
       elements = payload.elements;
     } catch (overpassError) {
+      // Overpass เป็น public instance ที่ใช้ร่วมกันและมี rate limit อาจไม่พร้อมใช้งานได้
+      // Photon คือ fallback ที่ระบุไว้ใน docs/TROUBLESHOOTING.md เพื่อให้ยังค้นหาสถานที่ใกล้เคียงได้
       try {
         return await new PhotonPublicProvider().nearby(point, radiusKm);
       } catch (photonError) {
@@ -218,6 +226,9 @@ export class OpenMeteoPublicProvider {
   }
 }
 
+// ใช้สูตรทรงกลม (แบบ haversine) หาจุดปลายทาง ไม่ใช่การคำนวณ geodesic/PostGIS จริง
+// เพียงพอสำหรับสร้าง polygon ที่ส่งให้ WorldPop จาก browser เท่านั้น ระบบ production
+// ควรใช้ PostGIS geography ตาม docs/POSTGIS.md ห้ามถือว่าเป็นขอบเขตระดับสำรวจจริง
 function radiusPolygon(point: GeoPoint, radiusKm: number) {
   const coordinates: number[][] = [];
   const earthRadiusKm = 6371;
@@ -246,6 +257,8 @@ export class WorldPopPublicProvider {
     if (!response.ok) throw new Error(`WorldPop ${response.status}`);
     const submitted = await response.json() as { task_id?: string };
     if (!submitted.task_id) throw new Error("WorldPop task ID unavailable");
+    // WorldPop คำนวณข้อมูลประชากรแบบ async ต้อง poll สถานะ task (นานสุดราว 8.4 วินาทีในที่นี้)
+    // แทนการรอผลลัพธ์แบบ synchronous
     for (let attempt = 0; attempt < 12; attempt += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 700));
       const taskResponse = await fetchWithTimeout(`${endpoint}/tasks/${encodeURIComponent(submitted.task_id)}`, {
@@ -295,6 +308,8 @@ export async function getPublicLocationContext(point: GeoPoint, radiusKm: number
   const openMeteo = new OpenMeteoPublicProvider();
   const worldPop = new WorldPopPublicProvider();
   const tomTom = new TomTomTrafficProvider();
+  // ใช้ allSettled: แต่ละ provider ล้มเหลวแยกจากกันได้ (ตามกติกาใน AI.md) — provider หนึ่งล่ม
+  // ไม่ทำให้ทั้ง request วิเคราะห์ล้มเหลว ส่วนอื่นของ panel ยังแสดงผลได้ตามปกติ
   const [osm, weather, elevation, hydrology, population, traffic] = await Promise.allSettled([
     overpass.nearby(point, radiusKm), openMeteo.weather(point), openMeteo.elevation(point), openMeteo.hydrology(point),
     worldPop.population(point, radiusKm), tomTom.traffic(point)
@@ -315,6 +330,8 @@ export async function getPublicLocationContext(point: GeoPoint, radiusKm: number
     traffic: traffic.status === "fulfilled" ? traffic.value : null,
     fetchedAt: new Date().toISOString(), errors, cached: false
   };
+  // cache ผลลัพธ์บางส่วน (มี error บ้าง) ไว้ เพื่อไม่ให้ provider ที่ไม่เสถียร ถูกยิงซ้ำถี่ๆ เมื่อวิเคราะห์ใหม่
+  // แต่จะไม่ cache กรณีล้มเหลวทั้งหมด (reject ครบทั้ง 6) เพราะควรให้ลองใหม่ทันที
   if (errors.length < 6) responseCache.set(cacheKey, context);
   return context;
 }

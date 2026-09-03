@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 import maplibregl from "maplibre-gl";
 import type { ExpressionSpecification, Map as MapLibreMap, Marker as MapLibreMarker, StyleSpecification } from "maplibre-gl";
 import {
@@ -27,9 +28,16 @@ import {
 import { ScoreBar } from "@/src/components/ui/score-bar";
 
 const INITIAL_LOCATION = { id: "initial-bangna", label: "Bang Na, Bangkok", latitude: 13.6681, longitude: 100.6357, source: "INITIAL" as const };
+// มุมกล้องคงที่ที่ใช้ทุกครั้งที่เปิดโหมด 3D (เปิดครั้งแรก, จัดกึ่งกลางใหม่, เปลี่ยนตำแหน่ง)
+// ใช้ค่าคงที่ชุดเดียว (ไม่คำนวณ pitch/bearing จาก gesture ผู้ใช้) เพื่อให้มุมมองอาคารสม่ำเสมอ
+// และตรงกับมุมอ้างอิงสไตล์ BTSMRT ที่ใช้มาตั้งแต่รุ่นก่อนหน้า
 const THREE_D_CAMERA = { zoom: 15.5, pitch: 55, bearing: -24 } as const;
+// layer "background" ของ MapLibre เองจะวาดสีทับ canvas ก่อน tile ใดๆ จะโหลด ไม่ใช่ส่วนหนึ่งของ
+// CSS หน้าเว็บและไม่ตามธีมแอปอัตโนมัติ จึงต้อง sync ด้วยมือ (ดู createBaseStyle และ effect ของ
+// resolvedTheme ด้านล่าง) ไม่เช่นนั้นโหมดมืดจะกะพริบเป็นสีฟ้าอ่อนก่อน
+const MAP_BACKGROUND = { light: "#e7eff8", dark: "#0f2236" } as const;
 
-function createBaseStyle(): StyleSpecification {
+function createBaseStyle(dark: boolean): StyleSpecification {
   const tiles = getApiConnection("osm-tiles");
   return {
     version: 8,
@@ -43,7 +51,7 @@ function createBaseStyle(): StyleSpecification {
       }
     } : {},
     layers: [
-      { id: "local-background", type: "background", paint: { "background-color": "#e7eff8" } },
+      { id: "local-background", type: "background", paint: { "background-color": dark ? MAP_BACKGROUND.dark : MAP_BACKGROUND.light } },
       ...(tiles.enabled ? [{ id: "osm-tiles", type: "raster" as const, source: "osm", paint: { "raster-opacity": .94, "raster-fade-duration": 0 } }] : [])
     ]
   };
@@ -86,6 +94,9 @@ function createEntityGlyph(kind: MapEntity["kind"]) {
   return svg;
 }
 
+// จัดกลุ่มตาม screen-space pixel grid (ไม่ใช่ระยะทางภูมิศาสตร์) เพื่อให้ขอบเขตกลุ่มคงที่ทางสายตา
+// ขณะ pan/zoom และ marker จะไม่ซ้อนทับกันบนจอไม่ว่าจุดจะอยู่ใกล้กันแค่ไหนในความเป็นจริง
+// ขนาด cell จะเล็กลงเมื่อซูมเข้า กลุ่มจึงค่อยๆ แยกเป็น marker เดี่ยวเมื่อดูระดับถนน
 function groupEntitiesByScreenCell(map: MapLibreMap, entities: MapEntity[]) {
   const zoom = map.getZoom();
   const cellSize = zoom < 10 ? 92 : zoom < 13 ? 72 : zoom < 15 ? 52 : 36;
@@ -107,6 +118,11 @@ function zoomScaledValue(value: { overview: number; normal: number; detail: numb
   ];
 }
 
+// วงรัศมีวิเคราะห์วาดเป็น SVG polygon ที่ project พิกัดแล้ววางทับ canvas แทนที่จะเป็น
+// MapLibre GL circle layer เพื่อไม่ให้ถูกอาคาร 3D หรือ terrain บดบัง ต้องคำนวณใหม่ทุกครั้งที่
+// move/resize แผนที่ (ดู updateRadiusOverlay ด้านล่าง) เพราะพิกัด pixel ที่ project ไว้เปลี่ยนตาม
+// pan/zoom/pitch ดู docs/TROUBLESHOOTING.md สำหรับสัญญาที่ต้องรักษา: หมุด native หนึ่งอัน
+// และ .analysis-radius-overlay หนึ่งชุดเท่านั้น
 function projectRadiusPoints(map: MapLibreMap, location: { longitude: number; latitude: number }, radiusKm: number) {
   return circlePolygon(location.longitude, location.latitude, radiusKm).geometry.coordinates[0]
     .map(([longitude, latitude]) => {
@@ -127,10 +143,18 @@ function firstMapLabelLayer(map: MapLibreMap) {
   )?.id;
 }
 
+// ต้องแทรกอาคารไว้ใต้ label layer แรกเสมอ เพื่อให้ชื่อสถานที่ยังอ่านออกเหนือหลังคาอาคาร
+// ถ้า style ยังไม่มี label layer ให้ fallback ไปแทรกใต้ opportunity clusters แทน
+// เพื่อไม่ให้อาคารบัง marker บนแผนที่
 function buildingInsertionLayer(map: MapLibreMap) {
   return firstMapLabelLayer(map) ?? firstMapOverlayLayer(map);
 }
 
+// เดิมระบบ render อาคาร 3D จากสองแหล่งพร้อมกัน (OpenFreeMap vector tiles และ same-origin OSM
+// GeoJSON extrusion) ซึ่งซ้อนกันจนเกิดอาคารซ้ำ/ผี — ดู docs/CHANGELOG.md 0.9.7-0.10.1
+// ตอนนี้ OpenFreeMap vector tiles เป็นแหล่งข้อมูลเดียวเท่านั้น source/layer จะถูกสร้างครั้งเดียว
+// แล้วคงอยู่ใน style ตลอด การเปิด-ปิด 3D จะสลับเฉพาะ visibility (setBuildingVisibility)
+// จึงไม่ fetch หรือเพิ่ม layer ซ้ำเมื่อกลับเข้าโหมด 3D อีกครั้ง
 function ensure3DBuildings(map: MapLibreMap) {
   const connection = getApiConnection("openfreemap");
   if (!connection.enabled || !connection.endpoint) return false;
@@ -149,6 +173,9 @@ function ensure3DBuildings(map: MapLibreMap) {
       filter: ["!=", ["get", "hide_3d"], true],
       paint: {
         "fill-extrusion-color": "#70a9d2",
+        // extrude จาก 0 ที่ zoom 14 ขึ้นไปเป็นความสูงจริงที่ 15.5 เพื่อให้อาคาร "โผล่ขึ้น" ตอนกล้อง
+        // เข้าใกล้แทนที่จะโผล่มาทันที render_height/min_height มาจาก OSM tags และ fallback เป็น
+        // ค่าเริ่มต้นที่สมเหตุสมผล (8 เมตร) เมื่ออาคารไม่มีข้อมูลความสูง
         "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.5, ["coalesce", ["get", "render_height"], 8]],
         "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14, 0, 15.5, ["coalesce", ["get", "render_min_height"], 0]],
         "fill-extrusion-opacity": 0.9,
@@ -156,11 +183,16 @@ function ensure3DBuildings(map: MapLibreMap) {
       },
     }, firstOverlayLayer);
   } else if (firstOverlayLayer) {
+    // style อาจ reload และมี label/overlay layer ใหม่เกิดขึ้นหลังจากเพิ่ม building layer ไปแล้ว
+    // จึงต้องย้ายตำแหน่งแทรกใหม่ให้ตรง ไม่ปล่อยให้ layer ซ้อนผิดตำแหน่ง
     map.moveLayer("3d-buildings", firstOverlayLayer);
   }
   return true;
 }
 
+// นิยาม "พร้อมใช้งาน" จากจำนวนอาคารที่ render จริงใน viewport ปัจจุบัน ไม่ใช่แค่ vector source
+// โหลดเสร็จทางเน็ตเวิร์ก — source ที่โหลดเสร็จอาจยังแสดงอาคารเป็นศูนย์ได้ถ้า tile นั้นไม่มีข้อมูล
+// อาคารจาก OSM ซึ่งเป็นสถานะ EMPTY_VIEW (ไม่ใช่ error)
 function rendered3DBuildingCount(map: MapLibreMap) {
   const layerId = "3d-buildings";
   return map.getLayer(layerId) && map.getLayoutProperty(layerId, "visibility") !== "none"
@@ -175,6 +207,10 @@ function setBuildingVisibility(map: MapLibreMap, visible: boolean) {
 }
 
 export function MapExplorer() {
+  // ตัวแปร *Ref ส่วนใหญ่ด้านล่างนี้ mirror React state (is3D/language/location/radius) ไว้
+  // เพื่อให้ callback ของ event บนแผนที่ที่ลงทะเบียนครั้งเดียวใน effect สร้างแผนที่ (deps ว่าง
+  // ด้านล่าง) อ่านค่าปัจจุบันได้ โดย effect นั้นไม่ต้องรันซ้ำทุกครั้งที่ state เปลี่ยน (ซึ่งจะสร้าง
+  // แผนที่ใหม่โดยไม่จำเป็น)
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const selectedMarkerRef = useRef<MapLibreMarker | null>(null);
@@ -206,13 +242,25 @@ export function MapExplorer() {
   const [layerState, setLayerState] = useState<Record<string, boolean>>(() => Object.fromEntries(LAYERS.map((layer) => [layer.id, layer.default])));
   const { language } = useApp();
   const languageRef = useRef(language);
+  const { resolvedTheme } = useTheme();
+  const isDarkRef = useRef(resolvedTheme === "dark");
   const geocoder = useMemo(() => new NominatimGeocodingProvider(), []);
 
   useEffect(() => { languageRef.current = language; }, [language]);
+  useEffect(() => { isDarkRef.current = resolvedTheme === "dark"; }, [resolvedTheme]);
   useEffect(() => {
     const timer = window.setTimeout(() => setInteractive(true), 0);
     return () => window.clearTimeout(timer);
   }, []);
+  // sync สี background layer ของ MapLibre กับการสลับธีมแบบ live (แผนที่ถูกสร้างครั้งเดียวโดยใช้ค่า
+  // isDarkRef ตอนนั้น การเปลี่ยนธีมภายหลังจึงต้องพึ่ง effect นี้แทน)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (map.getLayer("local-background")) {
+      map.setPaintProperty("local-background", "background-color", resolvedTheme === "dark" ? MAP_BACKGROUND.dark : MAP_BACKGROUND.light);
+    }
+  }, [resolvedTheme, mapReady]);
 
   const localResults: Candidate[] = [];
   const displayedResults = remoteResults;
@@ -282,8 +330,13 @@ export function MapExplorer() {
       return;
     }
     const applyMode = () => {
+      // "opportunity-points" จะถูกเพิ่มก็ต่อเมื่อ handler ของ "style.load" ทำงานเสร็จแล้ว
+      // (ดู effect สร้างแผนที่ด้านล่าง) จึงใช้การมีอยู่ของ layer นี้เป็นตัวเช็คแบบง่ายว่า
+      // "style พร้อมใช้งานหรือยัง"
       if (!map.getLayer("opportunity-points")) return false;
       if (next) {
+        // terrain กับ building extrusion ใช้ร่วมกันไม่ได้ใน pipeline นี้ ถ้าเปิดพร้อมกันจะยกพื้นที่
+        // ซ้อนกันสองชั้น จึงต้องปิด terrain ทุกครั้งที่เปิดอาคาร 3D
         map.setTerrain(null);
         if (map.getLayer("terrain-hillshade")) map.setLayoutProperty("terrain-hillshade", "visibility", "none");
         let buildingsEnabled = false;
@@ -312,6 +365,9 @@ export function MapExplorer() {
       setThreeDStatus(next ? "LOADING" : "IDLE");
       return true;
     };
+    // ถ้าผู้ใช้กดปุ่ม 3D ก่อน style โหลดเสร็จ applyMode() จะไม่ผ่านเงื่อนไขความพร้อมด้านบน
+    // จึง retry อีกครั้งหลังหน่วงเวลาสั้นๆ แทนที่จะปล่อยผ่านเฉยๆ โดยเช็ค is3DRef ก่อนเผื่อผู้ใช้
+    // กดสลับกลับเป็น 2D ระหว่างที่รออยู่
     if (!applyMode() && next) {
       setThreeDStatus("LOADING");
       window.setTimeout(() => {
@@ -337,12 +393,14 @@ export function MapExplorer() {
     else setSearchMessage("");
   };
 
+  // แผนที่ถูกสร้างครั้งเดียวเท่านั้น (deps ว่าง) และถูกทำลายตอน unmount เงื่อนไข mapRef ด้านล่าง
+  // ยังช่วยป้องกันไม่ให้ React StrictMode (dev-mode invoke ซ้ำ) สร้างแผนที่สองอินสแตนซ์
   useEffect(() => {
     let cancelled = false;
     if (cancelled || !container.current || mapRef.current) return;
     const map = new maplibregl.Map({
       container: container.current,
-      style: createBaseStyle(),
+      style: createBaseStyle(isDarkRef.current),
       center: [INITIAL_LOCATION.longitude, INITIAL_LOCATION.latitude],
       zoom: 12.2,
       minZoom: THAILAND_MAP_VIEW.minZoom,
@@ -355,6 +413,9 @@ export function MapExplorer() {
     });
     mapRef.current = map;
     const selectedLocation = locationRef.current;
+    // หมุด native ของ MapLibre ยึดกับ lng/lat: อยู่เหนือ WebGL canvas เสมอ (อาคาร 3D จึงบังไม่ได้)
+    // และ pitchAlignment/rotationAlignment "viewport" ทำให้ขนาดบนจอคงที่และตั้งตรงแม้กล้องจะเอียง/
+    // หมุนในโหมด 3D
     const selectedMarker = new maplibregl.Marker({
       color: "#087ff0",
       scale: 0.82,
@@ -401,6 +462,9 @@ export function MapExplorer() {
     map.on("resize", updateRadiusOverlay);
     updateRadiusOverlay();
 
+    // สร้าง marker/cluster ใหม่ทั้งหมดทุกครั้งที่เรียก แทนที่จะ diff กับชุดเดิม — จำนวน entity ใน
+    // ที่นี้มีไม่มาก (POI รอบรัศมีวิเคราะห์) ความง่ายของการสร้างใหม่ทั้งหมดจึงคุ้มกว่า และช่วยเลี่ยง
+    // บัค marker ค้างเมื่อชั้นข้อมูลที่เปิดใช้งานหรือการจัดกลุ่มตาม screen-cell เปลี่ยนไป
     const renderEntityMarkers = () => {
       entityMarkersRef.current.forEach((marker) => marker.remove());
       entityMarkersRef.current = [];
@@ -445,11 +509,17 @@ export function MapExplorer() {
     map.on("zoomend", renderEntityMarkers);
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
     map.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-left");
+    // basemap tile กับอาคาร 3D ล้มเหลวแยกจากกัน: error โหลด tile จะเตือนเฉพาะ basemap 2D และ
+    // error ของ OpenFreeMap จะเปลี่ยนแค่สถานะ 3D ทำให้ provider หนึ่งล่มไม่ทำให้แผนที่ทั้งหมดพัง
+    // (ดู AI.md "Provider failures remain isolated")
     map.on("error", (event) => {
       const message = String(event.error?.message ?? "").toLowerCase();
       if (message.includes("openfreemap") && is3DRef.current) setThreeDStatus("UNAVAILABLE");
       else if (message.includes("tile") && !is3DRef.current) setTileWarning(true);
     });
+    // ตรวจสถานะความพร้อมของอาคารจากสอง event เพราะอันไหนจะยิงก่อนก็ได้ขึ้นอยู่กับความเร็วเน็ตเวิร์ก:
+    // "idle" ครอบคลุมกรณีทั่วไปหลังแผนที่นิ่ง ส่วน "sourcedata" ตอบสนองทันทีที่ vector tile ของ
+    // อาคารโหลดเสร็จแม้แผนที่จะยังเคลื่อนไหวอยู่
     map.on("idle", () => {
       if (map.getSource("osm") && map.isSourceLoaded("osm") && map.areTilesLoaded()) {
         setTileWarning(false);
@@ -482,6 +552,8 @@ export function MapExplorer() {
       }
     });
     map.on("style.load", () => {
+      // "style.load" อาจยิงซ้ำได้ (เช่นหลัง reset style) จึงสร้าง source/layer ของ opportunities
+      // แค่ครั้งแรกเท่านั้น เพื่อไม่ให้เกิด error จาก ID ซ้ำเมื่อยิงซ้ำ
       if (map.getSource("opportunities")) {
         setMapReady(true);
         return;
@@ -532,6 +604,8 @@ export function MapExplorer() {
     };
   }, []);
 
+  // อัปเดตตำแหน่งหมุด/วงรัศมีเดิมให้ถูกต้องเมื่อ location/radius/language เปลี่ยน โดยไม่แตะ
+  // instance ของแผนที่เอง (ซึ่งถูกสร้างครั้งเดียวด้านบน)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;

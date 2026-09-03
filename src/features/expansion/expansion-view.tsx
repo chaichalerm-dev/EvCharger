@@ -12,6 +12,8 @@ export function ExpansionView() {
   const th = language === "th";
   const { data: sites, loading, error } = useBusinessResource<Site>("sites");
   const scores = sites.map(site => calculateSiteScore(site.factors).overall);
+  // ช่วงคะแนน 75/60 ใช้จัดกลุ่มแสดงผลของหน้านี้เท่านั้น ไม่เกี่ยวกับ SCORE_THRESHOLDS
+  // (src/config/business.ts) ซึ่งเป็นตัวกำหนดคำแนะนำจริง
   const stages = [
     [th ? "ทั้งหมด" : "Total", sites.length], [th ? "ศักยภาพสูง" : "High potential", scores.filter(score => score >= 75).length], [th ? "มีศักยภาพ" : "Potential", scores.filter(score => score >= 60 && score < 75).length],
     [th ? "อยู่ระหว่างพิจารณา" : "Under review", sites.filter(site => ["UNDER_ANALYSIS", "QUALIFIED", "SITE_SURVEY"].includes(site.opportunityStatus)).length], [th ? "อนุมัติแล้ว" : "Approved", sites.filter(site => site.opportunityStatus === "APPROVED").length],

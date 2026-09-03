@@ -15,6 +15,8 @@ export function SiteIntelligence() {
   const site = sites.find(row => row.id === id);
   if (loading) return <main className="page"><div className="card status-card"><MapPin /><strong>Loading site intelligence…</strong></div></main>;
   if (error || !site) return <main className="page"><Link href="/sites" className="btn"><ArrowLeft />All opportunities</Link><div className="card status-card" style={{ marginTop: 13 }}><AlertTriangle /><strong>{error ? "Business API unavailable" : "Site not found"}</strong><p>{error ?? "The configured API did not return this identifier."}</p></div></main>;
+  // ป้าย "Verified"/"Estimated" ของ areaVerified ต้องแยกให้ชัดเสมอ ห้ามแสดงพื้นที่ประมาณการ
+  // เป็นพื้นที่ยืนยันแล้ว (ดู AI.md §3)
   const score = calculateSiteScore(site.factors);
   const recommendation = recommendSite(site, score);
   return <main className="page">

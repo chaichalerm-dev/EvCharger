@@ -1,5 +1,8 @@
 export type MapSelectionOrigin = "MAP" | "SEARCH";
 
+// สร้างวงกลม 64 จุดรอบจุดศูนย์กลางด้วยสูตร destination-bearing บนทรงกลม (รัศมีโลก 6371 กม.)
+// เป็นการประมาณค่าฝั่ง browser สำหรับวงรัศมีวิเคราะห์ ไม่ใช่การคำนวณแบบ geodesic ที่แม่นยำ
+// งานจริงด้าน distance/intersection ควรใช้ PostGIS geography (ดู AI.md กฎข้อมูลและ GIS)
 export function circlePolygon(longitude: number, latitude: number, radiusKm: number) {
   const coordinates: number[][] = [];
   const earth = 6371;
@@ -16,9 +19,9 @@ export function circlePolygon(longitude: number, latitude: number, radiusKm: num
 }
 
 /**
- * Search results may be outside the current viewport, so selecting one should
- * move the camera. A direct map click is already visible and must keep the
- * current viewport stable so the pin remains where the user clicked.
+ * ผลค้นหาอาจอยู่นอก viewport ปัจจุบัน เลือกแล้วจึงต้องเลื่อนกล้องตาม
+ * ส่วนการคลิกแผนที่โดยตรงมองเห็นอยู่แล้ว ต้องคง viewport เดิมไว้
+ * เพื่อให้หมุดอยู่ตรงจุดที่ผู้ใช้คลิกพอดี
  */
 export function shouldRecenterForSelection(origin: MapSelectionOrigin) {
   return origin === "SEARCH";

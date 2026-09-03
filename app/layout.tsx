@@ -32,6 +32,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  // nonce มาจาก middleware (ดู src/config/security-headers.ts) เพื่อผ่าน CSP script-src ที่เข้มงวด
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // body เริ่มต้นเป็น inert (กด/โฟกัสไม่ได้ พร้อมข้อความ "Loading…" จาก body[inert]::after ใน
+  // globals.css) จนกว่า Providers จะ mount และปลด inert ออก ป้องกันผู้ใช้โต้ตอบก่อน hydration เสร็จ
+  // suppressHydrationWarning เพราะ next-themes และ AppProvider ปรับ class/lang หลัง mount โดยเจตนา
   return <html lang="th" suppressHydrationWarning><body inert suppressHydrationWarning><Providers nonce={nonce}>{children}</Providers></body></html>;
 }

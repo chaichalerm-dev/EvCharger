@@ -1,7 +1,7 @@
 import type { Site } from "@/src/domain/models";
 import type { SiteRepository } from "./site.repository";
 
-/** Prevents demo fixtures from leaking into Real Provider Mode. */
+/** ป้องกันไม่ให้ข้อมูลจำลอง (demo fixture) หลุดเข้าไปใน Real Provider Mode */
 export class EmptySiteRepository implements SiteRepository {
   async getSites(): Promise<Site[]> { return []; }
   async getSiteById(): Promise<Site | null> { return null; }

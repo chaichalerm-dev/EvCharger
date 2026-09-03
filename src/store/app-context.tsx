@@ -5,6 +5,8 @@ import type { DemoRole, Permission } from "@/src/config/permissions";
 import { ROLE_PERMISSIONS } from "@/src/config/permissions";
 
 export type Language = "en" | "th";
+// เตรียมไว้สำหรับจำลองสถานะความล้มเหลวของแต่ละหน้า แต่ยังไม่ถูกผูกกับ UI หรือ service ใดใช้งานจริง
+// ความล้มเหลวจริงจะมาจาก error state ของแต่ละ hook เอง
 export type FailureMode = "NONE" | "API_UNAVAILABLE" | "EMPTY_DATA" | "SLOW_LOADING" | "ANALYSIS_FAILURE";
 
 interface AppState {
@@ -27,6 +29,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [failureMode, setFailureMode] = useState<FailureMode>("NONE");
 
+  // อ่านค่าที่บันทึกไว้หลัง mount เท่านั้น (ไม่ใช่ใน useState initializer) เพื่อให้ markup จาก server
+  // ตรงกับค่าเริ่มต้นไทย/สว่างเสมอ และไม่เกิด hydration mismatch
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const savedLanguage = localStorage.getItem("evatlas.language") as Language | null;
@@ -49,12 +53,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setRoleState(value);
     localStorage.setItem("evatlas.role", value);
   };
+  // หน้าเปรียบเทียบแสดงผลแบบ 4 คอลัมน์คงที่ จึงเพิกเฉยรายการที่ 5 เงียบๆ แทนการแจ้ง error หรือ scroll
   const toggleCompare = (id: string) => setCompareIds((current) => current.includes(id) ? current.filter((item) => item !== id) : current.length < 4 ? [...current, id] : current);
   const value = useMemo(() => ({
     language,
     setLanguage,
     role,
     setRole,
+    // ควบคุมแค่ฝั่ง UX เท่านั้น ระบบหลังบ้านในอนาคตต้องตรวจสิทธิ์ซ้ำทุก request ฝั่ง server
     hasPermission: (permission: Permission) => ROLE_PERMISSIONS[role].includes(permission),
     compareIds,
     toggleCompare,

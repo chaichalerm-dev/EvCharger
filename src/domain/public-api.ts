@@ -7,6 +7,8 @@ export interface WeatherSnapshot {
   weatherCode: number | null;
 }
 
+// เป็นบริบทแบบจำลองการไหลของแม่น้ำ (ความละเอียดตาม modelResolutionKm) ไม่ใช่การยืนยันน้ำท่วม
+// ระดับแปลงที่ดิน — ตามกฎ GIS ใน AI.md ห้ามนำเสนอเป็น flood certification
 export interface HydrologySnapshot {
   currentRiverDischargeM3s: number | null;
   maxSevenDayRiverDischargeM3s: number | null;
@@ -36,6 +38,7 @@ export interface PublicLocationContext {
   population: PopulationSnapshot | null;
   traffic: TrafficSnapshot | null;
   fetchedAt: string;
+  // แต่ละ provider ล้มเหลวแยกกันได้ — errors เก็บข้อความความล้มเหลวบางส่วนโดยไม่ทำให้ทั้งหน้าพัง
   errors: string[];
   cached: boolean;
 }

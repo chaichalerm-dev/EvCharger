@@ -5,9 +5,9 @@ type MarkerGlyphNode =
   | { type: "circle"; cx: number; cy: number; radius: number };
 
 /**
- * Lucide pictogram geometry rasterized into MapLibre images at runtime.
- * This keeps symbols fixed-size, provider-independent, and consistent with
- * the Lucide icons used in the layer controls and visible map legend.
+ * ข้อมูลรูปทรงไอคอนสไตล์ Lucide ที่ถูก rasterize เป็นภาพของ MapLibre ตอน runtime
+ * วิธีนี้ทำให้สัญลักษณ์บนแผนที่มีขนาดคงที่ ไม่ขึ้นกับ provider และหน้าตาตรงกับ
+ * ไอคอน Lucide ที่ใช้ในแผงควบคุมชั้นข้อมูลและป้ายสัญลักษณ์บนแผนที่
  */
 const MAP_MARKER_GLYPHS: Record<string, { color: string; nodes: MarkerGlyphNode[] }> = {
   "marker-ev": { color: "#0b84f3", nodes: [{ type: "path", d: "M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z" }] },
@@ -37,9 +37,10 @@ const MAP_MARKER_GLYPHS: Record<string, { color: string; nodes: MarkerGlyphNode[
 };
 
 export function registerMapMarkerImages(map: MapLibreMap) {
-  const pixelRatio = 2;
+  const pixelRatio = 2; // render ที่ 2x เพื่อให้ไอคอนคมชัดบนจอ high-DPI/retina
   const displaySize = 38;
   Object.entries(MAP_MARKER_GLYPHS).forEach(([id, glyph]) => {
+    // เงื่อนไข hasImage: "style.load" อาจยิงซ้ำได้ จึงข้ามการเพิ่มรูปที่ MapLibre มีอยู่แล้ว
     if (map.hasImage(id)) return;
     const canvas = document.createElement("canvas");
     canvas.width = displaySize * pixelRatio;

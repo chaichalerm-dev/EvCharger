@@ -4,6 +4,7 @@ type ScoreBarProps = {
   compact?: boolean;
 };
 
+// กำหนดสีแสดงผลเท่านั้น ไม่เกี่ยวกับช่วงคะแนน SCORE_THRESHOLDS ที่ใช้ตัดสินคำแนะนำ
 function scoreTone(value: number) {
   if (value >= 75) return "strong";
   if (value >= 60) return "medium";
@@ -11,6 +12,7 @@ function scoreTone(value: number) {
 }
 
 export function ScoreBar({ label, value, compact = false }: ScoreBarProps) {
+  // ตัดค่าให้อยู่ในช่วงเสมอ — ค่าปัจจัยที่หลุดช่วงต้องไม่ทำให้แถบคะแนนล้นหรือกลับด้าน
   const safeValue = Math.max(0, Math.min(100, Math.round(value)));
 
   return <div className={`score-bar score-${scoreTone(safeValue)} ${compact ? "compact" : ""}`}>

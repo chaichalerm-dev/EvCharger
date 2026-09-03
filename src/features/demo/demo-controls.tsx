@@ -4,6 +4,8 @@ import { ShieldAlert, UserCog } from "lucide-react";
 import { useApp } from "@/src/store/app-context";
 import type { DemoRole } from "@/src/config/permissions";
 
+// สลับ `role` ใน AppProvider ซึ่งควบคุมแค่ UI ฝั่ง client (ดู hasPermission ใน app-context.tsx)
+// ไม่ได้เชื่อมกับ backend จริง จึงจำลองความล้มเหลวของการยืนยันตัวตนจริงไม่ได้
 export function DemoControls() {
   const { role, setRole, language } = useApp();
   const th = language === "th";

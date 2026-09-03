@@ -18,6 +18,8 @@ function ApiConnections({ language }: { language: "en" | "th" }) {
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<Record<string, string>>({});
 
+  // โทเคนจะถูกส่งเข้า store ในหน่วยความจำของ updateApiConnection เท่านั้น ไม่ถูกบันทึกถาวร —
+  // ดู AI.md §5: โทเคนที่ผู้ใช้กรอกต้องอยู่ใน memory เท่านั้น ห้ามเก็บใน localStorage
   const apply = (id: ApiProviderId) => {
     try {
       updateApiConnection(id, { endpoint: endpoints[id], ...(tokens[id] ? { token: tokens[id] } : {}) });

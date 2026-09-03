@@ -12,6 +12,8 @@ export function ComparisonView() {
   const { compareIds, toggleCompare, language } = useApp();
   const th = language === "th";
   const { data: sites, loading, error } = useBusinessResource<Site>("sites");
+  // .slice(0, 4) ทำซ้ำขอบเขตที่ AppProvider.toggleCompare บังคับไว้แล้ว แต่ยังกันไว้ตรงนี้ด้วย
+  // เพราะ compareIds อาจค้างอยู่แม้ site หายไปแล้ว (เช่น หลังเปลี่ยนการเชื่อมต่อ Business API)
   const selected = compareIds.map(id => sites.find(site => site.id === id)).filter((site): site is Site => Boolean(site)).slice(0, 4);
   return <main className="page">
     <div className="page-head"><div><div className="eyebrow">{th ? "พื้นที่ช่วยตัดสินใจ" : "Decision workspace"}</div><h1>{th ? "เปรียบเทียบพื้นที่" : "Compare Sites"}</h1><p className="page-subtitle">{th ? "เปรียบเทียบได้สูงสุด 4 พื้นที่จาก Business API ด้วยเกณฑ์คะแนนเดียวกัน" : "Compare up to four locations from your Business API using one scoring configuration"}</p></div><span className="btn"><GitCompareArrows />{selected.length} {th ? "พื้นที่ที่เลือก" : "selected"}</span></div>

@@ -4,9 +4,8 @@ export interface SecurityHeader {
 }
 
 /**
- * Headers that do not depend on a request-specific nonce. They are also
- * applied through next.config so error responses and non-page resources keep
- * the same browser protections where the hosting runtime supports it.
+ * Header ที่ไม่ขึ้นกับ nonce เฉพาะ request นี้ยังถูกใช้ผ่าน next.config ด้วย เพื่อให้ error response
+ * และ resource ที่ไม่ใช่หน้าเว็บได้รับการป้องกันแบบเดียวกัน ในกรณีที่ hosting runtime รองรับ
  */
 export const BASE_SECURITY_HEADERS: SecurityHeader[] = [
   {
@@ -30,9 +29,8 @@ export const BASE_SECURITY_HEADERS: SecurityHeader[] = [
 ];
 
 /**
- * The application deliberately permits HTTPS connections because provider
- * endpoints can be changed from Settings. This keeps the frontend provider
- * abstraction usable without allowing arbitrary scripts, frames, or objects.
+ * ระบบเปิด HTTPS connection ทุกปลายทางโดยตั้งใจ เพราะ endpoint ของ provider แก้ได้จากหน้า Settings
+ * ทำให้ยังใช้งาน provider abstraction ของ frontend ได้ โดยไม่เปิดให้รัน script/frame/object ตามใจ
  */
 export function createContentSecurityPolicy(
   nonce: string,
@@ -40,8 +38,11 @@ export function createContentSecurityPolicy(
 ): string {
   const directives = [
     "default-src 'self'",
+    // 'unsafe-eval' เปิดเฉพาะ dev mode เพราะ Vite/Next HMR ต้องใช้ ใน production ต้องปิดเสมอ
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${isDevelopment ? " 'unsafe-eval'" : ""}`,
     "script-src-attr 'none'",
+    // 'unsafe-inline' จำเป็นเพราะหลาย component ใช้ inline style สำหรับสีที่มาจาก config (เช่นสี
+    // layer บนแผนที่) — nonce/strict-dynamic ด้านบนยังกัน script injection อยู่
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",

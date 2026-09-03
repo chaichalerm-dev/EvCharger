@@ -11,6 +11,8 @@ export function PartnerDetail() {
   const partners = useBusinessResource<Partner>("partners");
   const branchesResource = useBusinessResource<Branch>("branches");
   const partner = partners.data.find(row => row.id === id);
+  // สาขาไม่มี endpoint แยกตามพันธมิตรโดยเฉพาะ จึงดึงมาทั้งหมดแล้วกรองด้วย partnerId ฝั่ง client
+  // (เพียงพอสำหรับต้นแบบ ส่วน API จริงควร filter/pagination ฝั่ง server)
   const branches = branchesResource.data.filter(branch => branch.partnerId === id).sort((a, b) => b.siteScore - a.siteScore);
   if (partners.loading || branchesResource.loading) return <main className="page"><div className="card status-card"><Building2 /><strong>Loading partner…</strong></div></main>;
   if (!partner) return <main className="page"><Link className="btn" href="/partners"><ArrowLeft />All partners</Link><div className="card status-card" style={{ marginTop: 13 }}><Building2 /><strong>Partner not found</strong><p>Check the Business API connection and partner identifier.</p></div></main>;

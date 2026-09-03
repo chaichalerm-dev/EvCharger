@@ -17,6 +17,8 @@ type FormData = z.output<typeof submissionSchema>;
 export function PartnersView() {
   const [showForm, setShowForm] = useState(false);
   const [toast, setToast] = useState("");
+  // localCount นับรายการที่ส่งแบบต้นแบบซึ่งเก็บในเครื่อง (localStorage) ส่วน `partners` ด้านล่าง
+  // คือรายชื่อจริงจาก Business API — เป็นคนละแหล่งข้อมูลที่มาแสดงรวมกันในหน้าเดียว
   const [localCount, setLocalCount] = useState(0);
   const { data: partners, loading, error } = useBusinessResource<Partner>("partners");
   const { hasPermission, language } = useApp();

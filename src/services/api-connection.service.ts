@@ -22,6 +22,8 @@ export interface ApiConnection {
   updatedAt: string | null;
 }
 
+// แทนที่ tile placeholder {z}/{x}/{y} ก่อน parse เป็น URL เพื่อตรวจ endpoint ของ tile server ได้ด้วย
+// อนุญาต HTTP เฉพาะ localhost/127.0.0.1 (สำหรับ dev) endpoint จริงต้องเป็น HTTPS เสมอ
 const endpointSchema = z.string().trim().url().max(500).refine((value) => {
   const url = new URL(value.replaceAll("{z}", "0").replaceAll("{x}", "0").replaceAll("{y}", "0"));
   return url.protocol === "https:" || (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname));
@@ -42,6 +44,8 @@ const defaults: Record<ApiProviderId, ApiConnection> = {
   "business-api": { endpoint: "", token: "", enabled: false, updatedAt: null }
 };
 
+// เก็บ config การเชื่อมต่อ provider เป็น module-level state พร้อม pub/sub เล็กๆ (ไม่ใช่ React state)
+// เพื่อให้อ่าน/แก้ endpoint หรือ token ได้จากทุกที่ (map, services, settings) โดยไม่ต้องส่งผ่าน props/context
 let connections = structuredClone(defaults);
 let revision = 0;
 const listeners = new Set<() => void>();
@@ -80,6 +84,8 @@ export function resetApiConnection(id: ApiProviderId) {
   notify();
 }
 
+// token ทั้งหมดอยู่ใน memory ของ module นี้เท่านั้น ไม่เคยเขียนลง localStorage — เรียกฟังก์ชันนี้เมื่อ
+// ต้องการล้าง token ทั้งหมด (เช่นตอน refresh) โดยไม่กระทบ endpoint/enabled ที่ตั้งค่าไว้
 export function clearAllApiTokens() {
   connections = Object.fromEntries(Object.entries(connections).map(([id, connection]) => [id, { ...connection, token: "", updatedAt: new Date().toISOString() }])) as Record<ApiProviderId, ApiConnection>;
   notify();

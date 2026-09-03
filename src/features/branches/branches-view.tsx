@@ -12,6 +12,7 @@ export function BranchesView() {
   const { language } = useApp();
   const th = language === "th";
   const branches = useBusinessResource<Branch>("branches");
+  // ดึงข้อมูลพันธมิตรแยกต่างหาก แล้วจับคู่ด้วย id ฝั่ง client ด้านล่าง (payload ของสาขามีแค่ partnerId)
   const partners = useBusinessResource<Partner>("partners");
   const rows = useMemo(() => branches.data.filter(branch => `${branch.name}${branch.province}${branch.district}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => b.siteScore - a.siteScore), [branches.data, query]);
   return <main className="page">

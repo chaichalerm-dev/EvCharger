@@ -13,6 +13,8 @@ import { useApp } from "@/src/store/app-context";
 export function DashboardView() {
   const { language } = useApp();
   const th = language === "th";
+  // `sites` จะเป็น [] จนกว่าจะตั้งค่า Company Business API — ส่วนพอร์ตบริษัทด้านล่างจึงแสดงสถานะ
+  // "ยังไม่เชื่อมต่อ" ตามจริง ไม่สร้างข้อมูลปลอมขึ้นมา (ดู AI.md §5)
   const { data: sites, loading, error, refresh } = useBusinessResource<Site>("sites");
   const scores = sites.map(site => calculateSiteScore(site.factors).overall);
   const metrics = [

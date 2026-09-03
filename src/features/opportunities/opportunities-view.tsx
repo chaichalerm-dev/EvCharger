@@ -11,6 +11,8 @@ import { useApp } from "@/src/store/app-context";
 export function OpportunitiesView() {
   const { language } = useApp();
   const th = language === "th";
+  // "opportunities" เป็นคนละ resource key กับ "sites" (ที่ dashboard/expansion/comparison ใช้)
+  // แม้ทั้งคู่จะคืนค่าเป็น Site[] เหมือนกัน — ดู use-business-resource.ts
   const { data: sites, loading, error } = useBusinessResource<Site>("opportunities");
   return <main className="page">
     <div className="page-head"><div><div className="eyebrow">{th ? "กระบวนการตัดสินใจ" : "Decision pipeline"}</div><h1>{th ? "วงจรโอกาสทางธุรกิจ" : "Opportunity Lifecycle"}</h1><p className="page-subtitle">{th ? "ติดตามโอกาสของบริษัทจาก REST API ที่ตั้งค่าไว้" : "Track company opportunities returned by the configured REST API"}</p></div></div>

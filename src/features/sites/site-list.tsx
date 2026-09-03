@@ -12,6 +12,8 @@ export function SiteList() {
   const [query, setQuery] = useState("");
   const { compareIds, toggleCompare, language } = useApp();
   const th = language === "th";
+  // ช่องติ๊ก "เปรียบเทียบ" ผูกกับ toggleCompare ของ AppProvider โดยตรง — เกิน 4 รายการจะถูกเพิกเฉย
+  // ที่ต้นทาง (ดูคอมเมนต์ใน app-context.tsx) ไม่ต้องกันซ้ำในหน้านี้
   const { data: sites, loading, error } = useBusinessResource<Site>("sites");
   const rows = useMemo(() => sites.filter(site => `${site.name}${site.province}${site.district}`.toLowerCase().includes(query.toLowerCase())).sort((a, b) => calculateSiteScore(b.factors).overall - calculateSiteScore(a.factors).overall), [query, sites]);
   return <main className="page">
